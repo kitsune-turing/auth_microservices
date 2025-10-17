@@ -48,7 +48,8 @@ services:
       dockerfile: Dockerfile
     container_name: users_microservice
     environment:
-      DATABASE_URL: postgresql+asyncpg://admin:secure_password_123@postgres:5432/auth_login_services
+      DATABASE_PASSWORD: secure_password_123
+      DATABASE_URL: postgresql+asyncpg://admin:${DATABASE_PASSWORD}@postgres:5432/auth_login_services
       SERVICE_PORT: 8006
     ports:
       - "8006:8006"
@@ -80,7 +81,8 @@ services:
       dockerfile: Dockerfile
     container_name: management_application_microservice
     environment:
-      DATABASE_URL: postgresql+asyncpg://admin:secure_password_123@postgres:5432/auth_login_services
+      DATABASE_PASSWORD: secure_password_123
+      DATABASE_URL: postgresql+asyncpg://admin:${DATABASE_PASSWORD}@postgres:5432/auth_login_services
       SERVICE_PORT: 8007
     ports:
       - "8007:8007"
@@ -97,7 +99,8 @@ services:
       dockerfile: Dockerfile
     container_name: management_module_microservice
     environment:
-      DATABASE_URL: postgresql+asyncpg://admin:secure_password_123@postgres:5432/auth_login_services
+      DATABASE_PASSWORD: secure_password_123
+      DATABASE_URL: postgresql+asyncpg://admin:${DATABASE_PASSWORD}@postgres:5432/auth_login_services
       SERVICE_PORT: 8004
     ports:
       - "8004:8004"
