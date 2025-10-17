@@ -1,0 +1,116 @@
+services:
+  # PostgreSQL centralizada
+  postgres:
+    image: postgres:16-alpine
+    container_name: auth_login_services_db
+    environment:
+      POSTGRES_DB: auth_login_services
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secure_password_123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d auth_login_services"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - auth_network
+
+  # Auth Microservice
+  auth_microservice:
+    build:
+      context: ./auth_microservice
+      dockerfile: Dockerfile
+    container_name: auth_microservice
+    environment:
+      SERVICE_PORT: 8001
+      USERS_SERVICE_URL: http://users_microservice:8006
+      OTP_SERVICE_URL: http://otp_microservice:8003
+      JWT_SECRET_KEY: your-secret-key-change-in-production-min-32-chars
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: 7
+    ports:
+      - "8001:8001"
+    depends_on:
+      - users_microservice
+      - otp_microservice
+    networks:
+      - auth_network
+
+  # Users Microservice
+  users_microservice:
+    build:
+      context: ./users_microservice
+      dockerfile: Dockerfile
+    container_name: users_microservice
+    environment:
+      DATABASE_URL: postgresql+asyncpg://admin:secure_password_123@postgres:5432/auth_login_services
+      SERVICE_PORT: 8006
+    ports:
+      - "8006:8006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth_network
+
+  # OTP Microservice
+  otp_microservice:
+    build:
+      context: ./otp_microservice
+      dockerfile: Dockerfile
+    container_name: otp_microservice
+    environment:
+      SERVICE_PORT: 8003
+      OTP_EXPIRY_MINUTES: 5
+      OTP_MAX_ATTEMPTS: 3
+    ports:
+      - "8003:8003"
+    networks:
+      - auth_network
+
+  # Management Application Microservice
+  management_application_microservice:
+    build:
+      context: ./management_application_microservice
+      dockerfile: Dockerfile
+    container_name: management_application_microservice
+    environment:
+      DATABASE_URL: postgresql+asyncpg://admin:secure_password_123@postgres:5432/auth_login_services
+      SERVICE_PORT: 8007
+    ports:
+      - "8007:8007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth_network
+
+  # Management Module Microservice
+  management_module_microservice:
+    build:
+      context: ./management_module_microservice
+      dockerfile: Dockerfile
+    container_name: management_module_microservice
+    environment:
+      DATABASE_URL: postgresql+asyncpg://admin:secure_password_123@postgres:5432/auth_login_services
+      SERVICE_PORT: 8004
+    ports:
+      - "8004:8004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - auth_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  auth_network:
+    driver: bridge
