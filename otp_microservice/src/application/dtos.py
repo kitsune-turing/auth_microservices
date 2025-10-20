@@ -12,6 +12,7 @@ class GenerateOTPRequest(BaseModel):
         description="Delivery method (email or sms)",
         pattern="^(email|sms)$"
     )
+    recipient: Optional[str] = Field(None, description="Email address or phone number (optional)")
     
     @field_validator("delivery_method")
     @classmethod
@@ -35,7 +36,7 @@ class GenerateOTPResponse(BaseModel):
 class ValidateOTPRequest(BaseModel):
     """Request to validate OTP."""
     
-    user_id: str = Field(..., description="User ID")
+    otp_id: str = Field(..., description="OTP ID to validate")
     otp_code: str = Field(
         ...,
         description="OTP code to validate",
@@ -58,7 +59,9 @@ class ValidateOTPRequest(BaseModel):
 class ValidateOTPResponse(BaseModel):
     """Response from OTP validation."""
     
-    is_valid: bool = Field(..., description="Whether OTP is valid")
+    valid: bool = Field(..., description="Whether OTP is valid")
+    user_id: Optional[str] = Field(default=None, description="User ID if validation successful")
+    email: Optional[str] = Field(default=None, description="User email if validation successful")
     message: str = Field(..., description="Validation result message")
     attempts_remaining: Optional[int] = Field(
         default=None,

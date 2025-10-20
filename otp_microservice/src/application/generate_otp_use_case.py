@@ -3,6 +3,7 @@ import logging
 import secrets
 from datetime import datetime, UTC
 
+from src.core.ports import OTPRepositoryPort
 from src.core.domain.entity import OTP, DeliveryMethod
 from src.core.domain.exceptions import (
     OTPGenerationFailedException,
@@ -17,10 +18,14 @@ logger = logging.getLogger(__name__)
 class GenerateOTPUseCase:
     """Use case for generating OTP."""
     
-    def __init__(self):
-        """Initialize use case."""
-        # In a real implementation, inject OTP repository and notification service
-        self.otp_storage: dict[str, OTP] = {}  # Mock storage
+    def __init__(self, otp_repository: OTPRepositoryPort):
+        """
+        Initialize use case.
+        
+        Args:
+            otp_repository: OTP repository implementation
+        """
+        self.otp_repository = otp_repository
     
     def _generate_otp_code(self) -> str:
         """
@@ -97,8 +102,8 @@ class GenerateOTPUseCase:
             # Generate OTP code
             otp_code = self._generate_otp_code()
             
-            # Get recipient contact
-            recipient = self._get_recipient(request.user_id, request.delivery_method)
+            # Get recipient contact (use provided or fetch from users_microservice)
+            recipient = request.recipient or self._get_recipient(request.user_id, request.delivery_method)
             
             # Create OTP entity
             otp = OTP(
@@ -110,22 +115,24 @@ class GenerateOTPUseCase:
                 max_attempts=3,
             )
             
-            # Store OTP (mock - in real implementation, save to database)
-            self.otp_storage[request.user_id] = otp
+            # Save OTP to database
+            saved_otp = await self.otp_repository.save(otp)
             
-            # Mock: Mark as sent (in real implementation, send via email/SMS service)
-            otp.mark_as_sent()
+            # Note: In a real implementation, send via email/SMS service here
+            # For now, we keep the status as PENDING since the database enum doesn't support SENT
+            # saved_otp.mark_as_sent()
+            # await self.otp_repository.update(saved_otp)
             
             logger.info(
                 f"OTP generated successfully for user {request.user_id}. "
-                f"OTP ID: {otp.otp_id}, Code: {otp_code} (MOCK - do not log in production)"
+                f"OTP ID: {saved_otp.otp_id}"
             )
             
             # Return response with masked recipient
             # DEVELOPMENT MODE: Include OTP code for testing
             return GenerateOTPResponse(
-                otp_id=str(otp.otp_id),
-                expires_at=otp.expires_at.isoformat(),
+                otp_id=str(saved_otp.otp_id),
+                expires_at=saved_otp.expires_at.isoformat(),
                 delivery_method=request.delivery_method,
                 recipient=self._mask_recipient(recipient, request.delivery_method),
                 otp_code=otp_code,  # Only for development/testing

@@ -1,7 +1,8 @@
 """OTP Controller."""
 import logging
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, Depends
 
+from src.core.ports import OTPRepositoryPort
 from src.application.dtos import (
     GenerateOTPRequest,
     GenerateOTPResponse,
@@ -10,6 +11,7 @@ from src.application.dtos import (
 )
 from src.application.generate_otp_use_case import GenerateOTPUseCase
 from src.application.validate_otp_use_case import ValidateOTPUseCase
+from src.infrastructure.dependencies import get_otp_repository
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +19,6 @@ router = APIRouter(
     prefix="/otp",
     tags=["otp"],
 )
-
-# Shared storage for mock implementation
-# In a real implementation, this would be a database
-OTP_STORAGE = {}
-
-# Initialize use cases with shared storage
-generate_otp_use_case = GenerateOTPUseCase()
-generate_otp_use_case.otp_storage = OTP_STORAGE
-
-validate_otp_use_case = ValidateOTPUseCase(otp_storage=OTP_STORAGE)
 
 
 @router.post(
@@ -37,27 +29,34 @@ validate_otp_use_case = ValidateOTPUseCase(otp_storage=OTP_STORAGE)
     description=(
         "Generate a One-Time Password for user authentication. "
         "The OTP will be sent to the user's registered contact method (email/SMS). "
-        "**Note: This is a mock implementation for development.**"
+        "**Stored in database for persistence.**"
     ),
 )
-async def generate_otp(request: GenerateOTPRequest) -> GenerateOTPResponse:
+async def generate_otp(
+    request: GenerateOTPRequest,
+    otp_repository: OTPRepositoryPort = Depends(get_otp_repository),
+) -> GenerateOTPResponse:
     """
     Generate OTP for user.
     
-    **Mock Implementation Details:**
+    **Implementation Details:**
     - Generates a random 6-digit code
-    - Stores in memory (not persistent)
-    - Does not actually send email/SMS
-    - OTP code is logged for testing purposes
+    - Stores in PostgreSQL database
+    - Expires in 5 minutes (configurable)
+    - Maximum 3 validation attempts
+    
+    **Development Mode:**
+    - OTP code is included in response for testing
+    - Email/SMS sending is skipped
     
     **Production Implementation Would:**
-    1. Store OTP in database
-    2. Send via email service (SendGrid, AWS SES, etc.)
-    3. Send via SMS service (Twilio, AWS SNS, etc.)
-    4. Not log the actual OTP code
+    1. Send via email service (SendGrid, AWS SES, etc.)
+    2. Send via SMS service (Twilio, AWS SNS, etc.)
+    3. Not include OTP code in response
     
     Args:
         request: OTP generation request
+        otp_repository: OTP repository (injected)
         
     Returns:
         GenerateOTPResponse with OTP details
@@ -66,14 +65,12 @@ async def generate_otp(request: GenerateOTPRequest) -> GenerateOTPResponse:
         400: Invalid request parameters
         500: OTP generation failed
     """
-    logger.info(f"[MOCK] Generating OTP for user {request.user_id}")
+    logger.info(f"Generating OTP for user {request.user_id}")
     
-    response = await generate_otp_use_case.execute(request)
+    use_case = GenerateOTPUseCase(otp_repository)
+    response = await use_case.execute(request)
     
-    logger.info(
-        f"[MOCK] OTP generated successfully for user {request.user_id}. "
-        f"Check server logs for the actual code (development only)"
-    )
+    logger.info(f"OTP generated successfully for user {request.user_id}")
     
     return response
 
@@ -86,17 +83,21 @@ async def generate_otp(request: GenerateOTPRequest) -> GenerateOTPResponse:
     description=(
         "Validate a One-Time Password code for user authentication. "
         "Maximum 3 attempts allowed before OTP is invalidated. "
-        "**Note: This is a mock implementation for development.**"
+        "**Stored in database for persistence.**"
     ),
 )
-async def validate_otp(request: ValidateOTPRequest) -> ValidateOTPResponse:
+async def validate_otp(
+    request: ValidateOTPRequest,
+    otp_repository: OTPRepositoryPort = Depends(get_otp_repository),
+) -> ValidateOTPResponse:
     """
     Validate OTP code.
     
-    **Mock Implementation Details:**
-    - Validates against in-memory storage
+    **Implementation Details:**
+    - Validates against PostgreSQL database
     - Enforces attempt limits (3 max)
     - Checks expiration (5 minutes)
+    - Marks OTP as validated on success
     
     **Production Implementation Would:**
     1. Query database for OTP
@@ -106,6 +107,7 @@ async def validate_otp(request: ValidateOTPRequest) -> ValidateOTPResponse:
     
     Args:
         request: OTP validation request
+        otp_repository: OTP repository (injected)
         
     Returns:
         ValidateOTPResponse with validation result
@@ -115,14 +117,15 @@ async def validate_otp(request: ValidateOTPRequest) -> ValidateOTPResponse:
         404: No OTP found for user
         429: Maximum attempts exceeded
     """
-    logger.info(f"[MOCK] Validating OTP for user {request.user_id}")
+    logger.info(f"Validating OTP with otp_id: {request.otp_id}")
     
-    response = await validate_otp_use_case.execute(request)
+    use_case = ValidateOTPUseCase(otp_repository)
+    response = await use_case.execute(request)
     
-    if response.is_valid:
-        logger.info(f"[MOCK] OTP validated successfully for user {request.user_id}")
+    if response.valid:
+        logger.info(f"OTP validated successfully for otp_id: {request.otp_id}")
     else:
-        logger.warning(f"[MOCK] OTP validation failed for user {request.user_id}")
+        logger.warning(f"OTP validation failed for otp_id: {request.otp_id}")
     
     return response
 
