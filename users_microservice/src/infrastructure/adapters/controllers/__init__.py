@@ -1,4 +1,8 @@
-"""HTTP controllers."""
-from . import auth_controller, user_controller
+"""HTTP controllers.
 
-__all__ = ["auth_controller", "user_controller"]
+- user_controller: ROOT-protected endpoints for user management
+- internal_controller: Internal endpoints for inter-service communication
+"""
+from . import user_controller, internal_controller
+
+__all__ = ["user_controller", "internal_controller"]

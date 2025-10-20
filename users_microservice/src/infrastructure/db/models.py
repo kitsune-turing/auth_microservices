@@ -15,6 +15,7 @@ class UserModel(Base):
     """User table model."""
     
     __tablename__ = "users"
+    __table_args__ = ({"schema": "siata_auth"},)
     
     # Primary Key
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

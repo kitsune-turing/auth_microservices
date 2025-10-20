@@ -1,7 +1,11 @@
-"""Authentication Controller for Users Microservice.
+"""Internal Controller for Users Microservice.
 
-This controller handles authentication-related endpoints that will be called
-by the auth_microservice to validate user credentials.
+Handles internal endpoints called ONLY by other microservices.
+These endpoints are NOT protected by ROOT authorization since they are
+for inter-service communication.
+
+SECURITY NOTE: In production, these endpoints should be on a separate
+internal network or protected by service-to-service authentication.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -22,8 +26,8 @@ from src.infrastructure.config.dependencies import (
 
 
 router = APIRouter(
-    prefix="/api/users",
-    tags=["authentication"],
+    prefix="/internal/users",
+    tags=["internal"],
 )
 
 
@@ -31,10 +35,10 @@ router = APIRouter(
     "/validate-credentials",
     response_model=ValidateCredentialsResponse,
     status_code=status.HTTP_200_OK,
-    summary="Validate user credentials",
+    summary="[INTERNAL] Validate user credentials",
     description=(
-        "Validates username and password. Used by auth_microservice "
-        "during login process. Returns user data with role and permissions."
+        "INTERNAL USE ONLY - Called by auth_microservice. "
+        "Validates username and password. Returns user data with role and permissions."
     ),
 )
 async def validate_credentials(
@@ -42,9 +46,9 @@ async def validate_credentials(
     use_case: ValidateCredentialsUseCase = Depends(get_validate_credentials_use_case),
 ) -> ValidateCredentialsResponse:
     """
-    Validate user credentials.
+    Validate user credentials (INTERNAL ENDPOINT).
     
-    This endpoint is called by the auth_microservice to validate
+    This endpoint is called ONLY by auth_microservice to validate
     username and password using BCrypt.
     
     Args:
@@ -85,10 +89,10 @@ async def validate_credentials(
     "/validate-credentials-email",
     response_model=ValidateCredentialsResponse,
     status_code=status.HTTP_200_OK,
-    summary="Validate user credentials by email",
+    summary="[INTERNAL] Validate user credentials by email",
     description=(
-        "Validates email and password. Used by auth_microservice "
-        "during email-based login process. Returns user data with role and permissions."
+        "INTERNAL USE ONLY - Called by auth_microservice. "
+        "Validates email and password. Returns user data with role and permissions."
     ),
 )
 async def validate_credentials_by_email(
@@ -96,9 +100,9 @@ async def validate_credentials_by_email(
     use_case: ValidateCredentialsByEmailUseCase = Depends(get_validate_credentials_by_email_use_case),
 ) -> ValidateCredentialsResponse:
     """
-    Validate user credentials using email.
+    Validate user credentials using email (INTERNAL ENDPOINT).
     
-    This endpoint is called by the auth_microservice to validate
+    This endpoint is called ONLY by auth_microservice to validate
     email and password using BCrypt.
     
     Args:
@@ -128,10 +132,10 @@ async def validate_credentials_by_email(
         
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error: {str(e)}",
+            detail="Internal server error"
         )
 
 
@@ -139,21 +143,20 @@ async def validate_credentials_by_email(
     "/email/{email}",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
-    summary="Get user by email",
-    description="Retrieves user information by email address. Used by auth_microservice.",
+    summary="[INTERNAL] Get user by email",
+    description="INTERNAL USE ONLY - Retrieves user information by email address. Called by auth_microservice.",
 )
 async def get_user_by_email(
     email: str,
     use_case: GetUserByEmailUseCase = Depends(get_user_by_email_use_case),
 ) -> UserResponse:
     """
-    Get user by email address.
+    Get user by email address (INTERNAL ENDPOINT).
     
-    This endpoint is called by the auth_microservice to retrieve
-    user information by email.
+    This endpoint is called ONLY by auth_microservice.
     
     Args:
-        email: User's email address
+        email: User email address
         use_case: Injected GetUserByEmailUseCase
         
     Returns:
@@ -164,18 +167,19 @@ async def get_user_by_email(
         HTTPException 500: Internal server error
     """
     try:
-        result = await use_case.execute(email=email)
-        return UserResponse(**result)
+        result = await use_case.execute(email)
+        
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User not found with email: {email}",
+            )
+        
+        return result
         
     except HTTPException:
         raise
     except Exception as e:
-        # Check if it's a UserNotFoundException
-        if "not found" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"User with email {email} not found",
-            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",

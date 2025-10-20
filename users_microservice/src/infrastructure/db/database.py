@@ -2,6 +2,7 @@
 import logging
 import os
 from typing import AsyncGenerator
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -81,17 +82,20 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def setup_database() -> None:
     """
-    Create database tables if they don't exist.
+    Verify database connection.
+    
+    Database tables are created by the centralized schema.sql initialization script.
+    Do not attempt to create them again to avoid permission errors and conflicts.
     
     This should be called during application startup.
     """
     try:
         async with engine.begin() as conn:
-            # Create all tables
-            await conn.run_sync(Base.metadata.create_all)
-            logger.info("✅ Database tables created/verified")
+            # Just verify connection
+            await conn.execute(text("SELECT 1"))
+            logger.info("✅ Database connection verified")
     except Exception as e:
-        logger.error(f"❌ Database setup failed: {str(e)}")
+        logger.error(f"❌ Database connection failed: {str(e)}")
         raise
 
 

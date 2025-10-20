@@ -9,7 +9,7 @@ from datetime import datetime
 
 
 # ============================================================================
-# Authentication DTOs (Used by auth_microservice)
+# Internal DTOs (for inter-service communication)
 # ============================================================================
 
 class ValidateCredentialsRequest(BaseModel):
@@ -48,7 +48,7 @@ class ValidateCredentialsResponse(BaseModel):
     role: str
     team_name: Optional[str] = None
     is_active: bool
-    permissions: list[str]
+    permissions: list[str] = []
     
     class Config:
         json_schema_extra = {
@@ -65,7 +65,7 @@ class ValidateCredentialsResponse(BaseModel):
 
 
 # ============================================================================
-# User CRUD DTOs
+# User CRUD DTOs (ROOT protected)
 # ============================================================================
 
 class UserResponse(BaseModel):
@@ -106,16 +106,16 @@ class CreateUserRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
     name: str = Field(..., min_length=1, max_length=150)
     last_name: str = Field(..., min_length=1, max_length=150)
-    role: str = Field(..., pattern="^(root|external|user_siata)$")
+    role: str = Field(..., pattern="^(root|external|user_siata|admin)$")
     team_name: Optional[str] = Field(None, max_length=100)
     
     @validator('team_name')
     def validate_team_name(cls, v, values):
-        """Team name is required for user_siata role."""
+        """Team name is optional for admin and required for user_siata role."""
         if values.get('role') == 'user_siata' and not v:
             raise ValueError('team_name is required for user_siata role')
-        if values.get('role') != 'user_siata' and v:
-            raise ValueError('team_name should only be set for user_siata role')
+        if values.get('role') not in ['user_siata', 'admin'] and v:
+            raise ValueError('team_name should only be set for user_siata or admin roles')
         return v
     
     class Config:
@@ -191,16 +191,16 @@ class ChangePasswordRequest(BaseModel):
 
 class UpdateRoleRequest(BaseModel):
     """Request to update user role (only ROOT can do this)."""
-    role: str = Field(..., pattern="^(root|external|user_siata)$")
+    role: str = Field(..., pattern="^(root|external|user_siata|admin)$")
     team_name: Optional[str] = Field(None, max_length=100)
     
     @validator('team_name')
     def validate_team_name(cls, v, values):
-        """Team name is required for user_siata role."""
+        """Team name is optional for admin and required for user_siata role."""
         if values.get('role') == 'user_siata' and not v:
             raise ValueError('team_name is required for user_siata role')
-        if values.get('role') != 'user_siata' and v:
-            raise ValueError('team_name should only be set for user_siata role')
+        if values.get('role') not in ['user_siata', 'admin'] and v:
+            raise ValueError('team_name should only be set for user_siata or admin roles')
         return v
 
 

@@ -7,7 +7,8 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import and_, or_, func, update
+from sqlalchemy import and_, or_, func, update, text
+from sqlalchemy.orm import aliased
 
 from src.core.ports.repository_ports import UserRepositoryPort
 from src.infrastructure.db.models import UserModel
@@ -57,12 +58,30 @@ class UserRepository(UserRepositoryPort):
     async def get_user_by_id(self, user_id: UUID) -> Optional[dict]:
         """Get user by ID. Returns dict with user data or None."""
         try:
-            stmt = select(UserModel).where(UserModel.id == user_id)
-            result = await self.session.execute(stmt)
-            user = result.scalars().first()
+            # Use raw SQL with explicit schema
+            query = text("""
+                SELECT user_id, username, email, password_hash, first_name, last_name, role, 
+                       team_id, status, created_at, updated_at
+                FROM siata_auth.users
+                WHERE user_id = :user_id
+            """)
+            result = await self.session.execute(query, {"user_id": str(user_id)})
+            row = result.first()
             
-            if user:
-                return user.to_dict()
+            if row:
+                return {
+                    'id': UUID(str(row[0])),
+                    'username': row[1],
+                    'email': row[2],
+                    'password_hash': row[3],
+                    'name': row[4],
+                    'last_name': row[5],
+                    'role': row[6],
+                    'team_id': row[7],
+                    'is_active': row[8] == 'active',
+                    'created_at': row[9],
+                    'updated_at': row[10]
+                }
             return None
             
         except Exception as e:
@@ -72,15 +91,30 @@ class UserRepository(UserRepositoryPort):
     async def get_user_by_username(self, username: str) -> Optional[dict]:
         """Get user by username. Returns dict with user data or None."""
         try:
-            stmt = select(UserModel).where(UserModel.username == username)
-            result = await self.session.execute(stmt)
-            user = result.scalars().first()
+            # Use raw SQL with explicit schema
+            query = text("""
+                SELECT user_id, username, email, password_hash, first_name, last_name, role, 
+                       team_id, status, created_at, updated_at
+                FROM siata_auth.users
+                WHERE username = :username
+            """)
+            result = await self.session.execute(query, {"username": username})
+            row = result.first()
             
-            if user:
-                # Include password_hash for credential validation
-                user_dict = user.to_dict()
-                user_dict['password_hash'] = user.password_hash
-                return user_dict
+            if row:
+                return {
+                    'id': UUID(str(row[0])),
+                    'username': row[1],
+                    'email': row[2],
+                    'password_hash': row[3],
+                    'name': row[4],
+                    'last_name': row[5],
+                    'role': row[6],
+                    'team_id': row[7],
+                    'is_active': row[8] == 'active',
+                    'created_at': row[9],
+                    'updated_at': row[10]
+                }
             return None
             
         except Exception as e:
@@ -90,15 +124,30 @@ class UserRepository(UserRepositoryPort):
     async def get_user_by_email(self, email: str) -> Optional[dict]:
         """Get user by email. Returns dict with user data (including password_hash) or None."""
         try:
-            stmt = select(UserModel).where(UserModel.email == email)
-            result = await self.session.execute(stmt)
-            user = result.scalars().first()
+            # Use raw SQL with explicit schema
+            query = text("""
+                SELECT user_id, username, email, password_hash, first_name, last_name, role, 
+                       team_id, status, created_at, updated_at
+                FROM siata_auth.users
+                WHERE email = :email
+            """)
+            result = await self.session.execute(query, {"email": email})
+            row = result.first()
             
-            if user:
-                # Include password_hash for credential validation
-                user_dict = user.to_dict()
-                user_dict['password_hash'] = user.password_hash
-                return user_dict
+            if row:
+                return {
+                    'id': UUID(str(row[0])),
+                    'username': row[1],
+                    'email': row[2],
+                    'password_hash': row[3],
+                    'name': row[4],
+                    'last_name': row[5],
+                    'role': row[6],
+                    'team_id': row[7],
+                    'is_active': row[8] == 'active',
+                    'created_at': row[9],
+                    'updated_at': row[10]
+                }
             return None
             
         except Exception as e:
@@ -285,20 +334,20 @@ class UserRepository(UserRepositoryPort):
     async def user_exists(self, username: str = None, email: str = None) -> bool:
         """Check if user exists by username or email."""
         try:
-            filters = []
             if username:
-                filters.append(UserModel.username == username)
-            if email:
-                filters.append(UserModel.email == email)
-            
-            if not filters:
+                query = text("""
+                    SELECT user_id FROM siata_auth.users WHERE username = :username LIMIT 1
+                """)
+                result = await self.session.execute(query, {"username": username})
+            elif email:
+                query = text("""
+                    SELECT user_id FROM siata_auth.users WHERE email = :email LIMIT 1
+                """)
+                result = await self.session.execute(query, {"email": email})
+            else:
                 return False
             
-            stmt = select(UserModel.id).where(or_(*filters))
-            result = await self.session.execute(stmt)
-            user = result.scalars().first()
-            
-            return user is not None
+            return result.first() is not None
             
         except Exception as e:
             logger.error(f"Failed to check user existence: {str(e)}")

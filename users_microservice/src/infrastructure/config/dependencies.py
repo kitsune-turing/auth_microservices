@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.infrastructure.db.database import get_db_session
 from src.infrastructure.db.repository.user_repository import UserRepository
 from src.infrastructure.adapters.services.password_service import BcryptPasswordService
+from src.infrastructure.adapters.jano_client import get_jano_client, JANOClient
 
 from src.application.use_cases.validate_credentials_use_case import ValidateCredentialsUseCase
 from src.application.use_cases.validate_credentials_by_email_use_case import ValidateCredentialsByEmailUseCase
@@ -58,7 +59,8 @@ def get_create_user_use_case(
     password_service: BcryptPasswordService = Depends(get_password_service),
 ) -> CreateUserUseCase:
     """Get create user use case."""
-    return CreateUserUseCase(user_repository, password_service)
+    jano_client = get_jano_client()
+    return CreateUserUseCase(user_repository, password_service, jano_client)
 
 
 def get_validate_credentials_by_email_use_case(
