@@ -3,86 +3,45 @@
 **Concepto**: Un único microservicio que valida autenticación y autorización para TODOS los otros microservicios.
 
 ---
-
-## 📊 ARQUITECTURA ACTUAL vs PROPUESTA
-
-### ❌ ACTUAL (Validación Distribuida - NO ÓPTIMO)
-```
-┌─────────────────────────┐
-│   Auth Microservice     │
-│  - Genera JWT           │
-│  - OTP validation       │
-│  - Tokens               │
-└──────────┬──────────────┘
-
-┌─────────────────────────┐
-│   Users Microservice    │
-│  - Credenciales         │
-│  - JANO rules?          │
-│  - Rate limiting?       │
-└──────────┬──────────────┘
-
-┌─────────────────────────┐
-│   OTP Microservice      │
-│  - OTP codes            │
-│  - Validación?          │
-│  - Rate limiting?       │
-└──────────┬──────────────┘
-
-┌─────────────────────────┐
-│   Management App MS     │
-│  - ¿Cómo valida?        │
-│  - ¿Qué reglas?         │
-│  - ¿Rate limit?         │
-└─────────────────────────┘
-
-❌ PROBLEMA: Cada servicio hace su propia validación
-❌ PROBLEMA: No hay consistencia de reglas
-❌ PROBLEMA: Duplicación de lógica
-❌ PROBLEMA: Difícil mantener
-```
-
----
-
-### ✅ PROPUESTA (JANO Centralizado)
+## PROPUESTA (JANO Centralizado)
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                  JANO MICROSERVICE (Central)                   │
 │                        (Puerto 8002)                           │
 ├────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │  VALIDACIÓN DE TOKENS & AUTORIZACIÓN                    │  │
-│  │  - Valida JWT con firmas públicas                       │  │
-│  │  - Verifica roles y permisos                            │  │
-│  │  - Evalúa reglas de seguridad                           │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │  REGLAS DE SEGURIDAD (jano_security_rules)              │  │
-│  │  - Rate limiting (requests por minuto)                  │  │
-│  │  - IP whitelist                                         │  │
-│  │  - MFA policies                                         │  │
-│  │  - Password policies                                    │  │
-│  │  - Session expiry                                       │  │
-│  │  - Command execution rules                              │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │  CACHÉ DE PERMISOS & GRUPOS                             │  │
-│  │  - Cache de usuario + roles + grupos (10 min)           │  │
-│  │  - Cache de restricciones por recurso                   │  │
-│  │  - Cache de aplicaciones y módulos                      │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │  AUDITORÍA & LOGGING                                    │  │
-│  │  - Registro de violaciones (jano_rule_violations)       │  │
-│  │  - Logs de acceso negado                                │  │
-│  │  - Estadísticas de seguridad                            │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                                 │
+│                                                                │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  VALIDACIÓN DE TOKENS & AUTORIZACIÓN                    │   │
+│  │  - Valida JWT con firmas públicas                       │   │
+│  │  - Verifica roles y permisos                            │   │
+│  │  - Evalúa reglas de seguridad                           │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  REGLAS DE SEGURIDAD (jano_security_rules)              │   │
+│  │  - Rate limiting (requests por minuto)                  │   │
+│  │  - IP whitelist                                         │   │
+│  │  - MFA policies                                         │   │
+│  │  - Password policies                                    │   │
+│  │  - Session expiry                                       │   │
+│  │  - Command execution rules                              │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  CACHÉ DE PERMISOS & GRUPOS                             │   │
+│  │  - Cache de usuario + roles + grupos (10 min)           │   │
+│  │  - Cache de restricciones por recurso                   │   │
+│  │  - Cache de aplicaciones y módulos                      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  AUDITORÍA & LOGGING                                    │   │
+│  │  - Registro de violaciones (jano_rule_violations)       │   │
+│  │  - Logs de acceso negado                                │   │
+│  │  - Estadísticas de seguridad                            │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                │
 └────────────────────────────────────────────────────────────────┘
    ▲            ▲            ▲           
    │ Valida     │ Valida     │ Valida  
@@ -94,7 +53,7 @@
 
 ---
 
-## 🔄 FLUJO DE VALIDACIÓN EN JANO
+## FLUJO DE VALIDACIÓN EN JANO
 
 ### Cuando CUALQUIER microservicio recibe una petición:
 
@@ -188,140 +147,9 @@
 
 ---
 
-## 📋 ENDPOINTS DE JANO
-
-### 1. **POST /api/validate** (Principal)
-**Propósito**: Validar token y autorización
-
-```
-Petición:
-POST http://jano_microservice:8002/api/validate
-{
-  "token": "eyJhbGc...",
-  "endpoint": "/api/users/1",
-  "method": "GET",
-  "ip_address": "192.168.1.100",
-  "user_agent": "Mozilla/5.0...",
-  "request_data": {} (opcional)
-}
-
-Respuesta ✅ (Autorizado):
-{
-  "authorized": true,
-  "user": {
-    "user_id": "...",
-    "username": "juan.perez",
-    "role": "user_siata",
-    "groups": ["hidrologia"],
-    "permissions": ["read", "write"]
-  },
-  "validation_stages": [
-    {"stage": "authentication", "result": "PASS"},
-    {"stage": "authorization", "result": "PASS"},
-    {"stage": "rules_evaluation", "result": "PASS"}
-  ]
-}
-
-Respuesta ❌ (No autorizado):
-{
-  "authorized": false,
-  "error": "RATE_LIMIT_EXCEEDED",
-  "message": "100 requests per minute exceeded",
-  "retry_after": 45
-}
-```
-
-### 2. **POST /api/validate-command** (Para comandos complejos)
-**Propósito**: Validar ejecución de comandos específicos
-
-```
-Petición:
-POST http://jano_microservice:8002/api/validate-command
-{
-  "token": "eyJhbGc...",
-  "command": "task.save",
-  "resource": "/api/tasks",
-  "ip_address": "192.168.1.100"
-}
-
-Respuesta:
-{
-  "authorized": true,
-  "command": "task.save",
-  "restrictions_matched": {
-    "rule": "COMMAND_RULE_001",
-    "allowed_roles": ["root", "user_siata"],
-    "allowed_commands": ["*"]
-  }
-}
-```
-
-### 3. **GET /api/rules** (Consultar reglas)
-**Propósito**: Obtener todas las reglas de seguridad
-
-```
-GET http://jano_microservice:8002/api/rules
-
-Respuesta:
-{
-  "rules": [
-    {
-      "rule_id": "...",
-      "rule_name": "Rate limiting de API",
-      "rule_type": "rate_limit",
-      "config": {
-        "requests_per_minute": 100,
-        "burst_size": 150
-      },
-      "severity": "high",
-      "is_active": true
-    },
-    ...
-  ]
-}
-```
-
-### 4. **POST /api/violations** (Log de violaciones)
-**Propósito**: Registrar violaciones de seguridad
-
-```
-POST http://jano_microservice:8002/api/violations
-{
-  "user_id": "...",
-  "rule_id": "...",
-  "violation_type": "RATE_LIMIT_EXCEEDED",
-  "endpoint": "/api/data/stations",
-  "ip_address": "203.0.113.42",
-  "was_blocked": true
-}
-
-Respuesta:
-{
-  "violation_id": "...",
-  "recorded_at": "2025-10-19T23:00:00Z"
-}
-```
-
-### 5. **GET /api/cache-status** (Estado del caché)
-**Propósito**: Monitoreo
-
-```
-GET http://jano_microservice:8002/api/cache-status
-
-Respuesta:
-{
-  "cache": {
-    "total_entries": 543,
-    "memory_usage_mb": 12.5,
-    "hit_rate": 0.87,
-    "ttl_seconds": 600
-  }
-}
-```
-
 ---
 
-## 🏗️ ESTRUCTURA INTERNA DE JANO
+## ESTRUCTURA INTERNA DE JANO
 
 ```
 jano_microservice/
@@ -393,7 +221,7 @@ jano_microservice/
 
 ---
 
-## 🔄 FLUJO ENTRE MICROSERVICIOS Y JANO
+## FLUJO ENTRE MICROSERVICIOS Y JANO
 
 ### Ejemplo: Petición a Users Microservice
 
@@ -416,10 +244,10 @@ CLIENTE
 │  JANO Microservice (8002)   │
 │  POST /api/validate         │
 │  {                          │
-│    "token": "eyJhbGc...",  │
+│    "token": "eyJhbGc...",   │
 │    "endpoint": "/api/users" │
 │    "method": "POST",        │
-│    "ip_address": "192..." │
+│    "ip_address": "192..."   │
 │  }                          │
 └──────────┬──────────────────┘
            │
@@ -459,41 +287,6 @@ CLIENTE
     }
 ```
 
----
-
-## 💾 TABLAS QUE USA JANO
-
-### Desde `siata_auth` schema:
-
-1. **users** (lee)
-   - Obtiene roles, grupos, permisos
-
-2. **auth_tokens** (lee)
-   - Valida que el token existe y no esté revocado
-
-3. **jano_security_rules** (lee)
-   - Obtiene reglas de seguridad configuradas
-
-4. **jano_rule_violations** (escribe)
-   - Registra violaciones cuando alguien intenta acceder sin permisos
-
-5. **sessions** (lee)
-   - Valida sesiones activas
-
-6. **teams** (lee)
-   - Obtiene grupos del usuario
-
-7. **applications** (lee)
-   - Valida aplicaciones autorizadas
-
-8. **modules** (lee)
-   - Valida acceso a módulos
-
-9. **module_permissions** (lee)
-   - Obtiene permisos específicos por rol/equipo
-
----
-
 ## ⚡ CACHÉ EN JANO (CRÍTICO)
 
 ```
@@ -501,27 +294,27 @@ CLIENTE
 │         CACHÉ DE JANO (10 minutos TTL)         │
 ├────────────────────────────────────────────────┤
 │                                                │
-│ Clave: user:{user_id}                         │
-│ Valor:                                        │
-│ {                                             │
-│   "user_id": "...",                          │
-│   "username": "juan",                        │
-│   "role": "user_siata",                      │
-│   "groups": ["hidrologia", "dev"],           │
-│   "permissions": ["read", "write"],          │
-│   "cached_at": 2025-10-19T23:00:00,          │
-│   "expires_at": 2025-10-19T23:10:00          │
-│ }                                             │
-│                                               │
-│ Clave: rule:{rule_id}                         │
-│ Valor: {...regla configurada...}             │
-│                                               │
-│ Clave: rate_limit:{ip}                        │
-│ Valor: {requests: 95, window_end: ...}       │
-│                                               │
-│ Clave: endpoint:{endpoint}:{method}          │
-│ Valor: {matched_rule_id: "...", ...}         │
-│                                               │
+│ Clave: user:{user_id}                          │
+│ Valor:                                         │
+│ {                                              │
+│   "user_id": "...",                            │
+│   "username": "juan",                          │
+│   "role": "user_siata",                        │
+│   "groups": ["hidrologia", "dev"],             │
+│   "permissions": ["read", "write"],            │
+│   "cached_at": 2025-10-19T23:00:00,            │
+│   "expires_at": 2025-10-19T23:10:00            │
+│ }                                              │
+│                                                │
+│ Clave: rule:{rule_id}                          │
+│ Valor: {...regla configurada...}               │
+│                                                │
+│ Clave: rate_limit:{ip}                         │
+│ Valor: {requests: 95, window_end: ...}         │
+│                                                │
+│ Clave: endpoint:{endpoint}:{method}            │
+│ Valor: {matched_rule_id: "...", ...}           │
+│                                                │
 └────────────────────────────────────────────────┘
 
 IMPORTANTE:
@@ -533,9 +326,9 @@ IMPORTANTE:
 
 ---
 
-## 🔌 CÓMO LOS OTROS MICROSERVICIOS INTEGRAN JANO
+## CÓMO LOS OTROS MICROSERVICIOS INTEGRAN JANO
 
-### En cada microservicio (Auth, Users, OTP, Management):
+### En cada microservicio (Auth, Users, OTP):
 
 ```python
 # En el controlador o middleware
@@ -654,8 +447,8 @@ INSERT INTO module_permissions (...) VALUES (...);
                      │ + JWT Token
                      ▼
 ┌─────────────────────────────────────────────┐
-│  Auth MS │ Users MS │ OTP MS │ Mgmt MS     │
-│  (8001)  │  (8006)  │ (8003) │   (8005)    │
+│  Auth MS │ Users MS │ OTP MS │              │
+│  (8001)  │  (8006)  │ (8003) │              │
 │                                             │
 │  Cada MS envía petición a JANO              │
 │  (Antes de procesar)                        │
@@ -678,7 +471,7 @@ INSERT INTO module_permissions (...) VALUES (...);
                      │ Lee/Escribe
                      ▼
         ┌─────────────────────────────┐
-        │     PostgreSQL (siata_auth)  │
+        │     PostgreSQL (siata_auth) │
         │                             │
         │  - users                    │
         │  - auth_tokens              │
@@ -694,67 +487,7 @@ INSERT INTO module_permissions (...) VALUES (...);
 
 ---
 
-## 🎯 CONFIGURACIÓN DE REGLAS EN JANO
-
-### Ejemplo de Regla: Rate Limiting
-```sql
-INSERT INTO jano_security_rules (
-  rule_name,
-  rule_type,
-  rule_code,
-  description,
-  rule_config,
-  severity,
-  priority,
-  is_active,
-  applies_to_roles
-) VALUES (
-  'Rate limiting de API',
-  'rate_limit',
-  'RATE_LIMIT_001',
-  'Máximo 100 requests por minuto por IP',
-  '{
-    "requests_per_minute": 100,
-    "burst_size": 150,
-    "block_duration_minutes": 15
-  }',
-  'high',
-  120,
-  true,
-  NULL  -- Aplica a todos los roles
-);
-```
-
-### Ejemplo de Regla: Authorization por Endpoint
-```sql
-INSERT INTO jano_security_rules (
-  rule_name,
-  rule_type,
-  rule_code,
-  description,
-  rule_config,
-  severity,
-  applies_to_endpoints
-) VALUES (
-  'Acceso a /api/tasks',
-  'authorization',
-  'AUTH_ENDPOINT_001',
-  'Solo root y user_siata pueden acceder a /api/tasks',
-  '{
-    "endpoint": "/api/tasks",
-    "method": "GET",
-    "allowed_roles": ["root", "user_siata"],
-    "required_groups": []
-  }',
-  'high',
-  NULL,
-  '{/api/tasks*}'
-);
-```
-
----
-
-## 🔐 FLUJO COMPLETO DETALLADO
+## FLUJO COMPLETO DETALLADO
 
 ```
 CLIENTE envía:
@@ -849,33 +582,3 @@ CLIENTE recibe:
   "role": "user_siata"
 }
 ```
-
----
-
-## 🎓 RESUMEN EN PUNTOS CLAVE
-
-✅ **JANO es un microservicio independiente** que:
-1. Valida JWT tokens
-2. Verifica autorización (roles, permisos, grupos)
-3. Evalúa reglas de seguridad
-4. Implementa rate limiting
-5. Registra violaciones
-6. Cachea decisiones (10 minutos)
-
-✅ **Todos los MS consultan a JANO** antes de procesar:
-- Auth MS → Consulta JANO
-- Users MS → Consulta JANO
-- OTP MS → Consulta JANO
-- Management MS → Consulta JANO
-
-✅ **Las reglas se configuran en 1 solo lugar**: Base de datos
-
-✅ **El caché es compartido**: 10 minutos TTL
-
-✅ **Es transversal y reutilizable**: Se aplica a todo
-
----
-
-**Esto es exactamente lo que Carolina explicaba en su presentación** 🎯
-
-Se puede implementar como `configuration_rules_microservice` que actúe como **JANO centralizado**.
