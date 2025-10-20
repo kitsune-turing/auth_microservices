@@ -11,6 +11,9 @@ from .auth_exceptions import (
     OTPServiceUnavailableException,
     OTPVerificationRequiredException,
     InvalidOTPException,
+    JANOServiceUnavailableException,
+    PasswordPolicyViolationException,
+    RateLimitExceededException,
 )
 
 __all__ = [
@@ -25,17 +28,7 @@ __all__ = [
     "OTPServiceUnavailableException",
     "OTPVerificationRequiredException",
     "InvalidOTPException",
-]
-
-__all__ = [
-    "AuthErrorCode",
-    "AuthException",
-    "InvalidCredentialsException",
-    "TokenExpiredException",
-    "InvalidTokenException",
-    "MissingAuthHeaderException",
-    "InvalidRefreshTokenException",
-    "UsersServiceUnavailableException",
-    "OTPServiceUnavailableException",
-    "OTPVerificationRequiredException",
+    "JANOServiceUnavailableException",
+    "PasswordPolicyViolationException",
+    "RateLimitExceededException",
 ]

@@ -48,13 +48,9 @@ async def lifespan(app: FastAPI):
             pool_pre_ping=settings.DATABASE_POOL_PRE_PING,
             timeout=settings.DATABASE_TIMEOUT,
         )
-        
-        # Create tables if they don't exist
-        logger.info("Creating database tables...")
-        await DatabaseAdapter.create_tables()
-        logger.info("✅ Database initialized successfully")
+        logger.info("Database connection initialized successfully")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize database: {e}")
+        logger.error(f"Failed to initialize database: {e}")
         raise
     
     yield
@@ -64,7 +60,7 @@ async def lifespan(app: FastAPI):
     logger.info(" AUTH MICROSERVICE SHUTTING DOWN")
     logger.info("=" * 60)
     await DatabaseAdapter.dispose()
-    logger.info("✅ Database connections closed")
+    logger.info("Database connections closed")
 
 
 # Create FastAPI application

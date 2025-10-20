@@ -44,7 +44,8 @@ class AuthTokenRepository(AuthTokenRepositoryPort):
             
             if existing:
                 # Update existing token
-                existing.token_string = token.token_string
+                existing.token_hash = token.token_hash
+                existing.jti = token.jti
                 existing.expires_at = token.expires_at
                 existing.revoked = token.revoked
                 if token.revoked:
@@ -56,7 +57,8 @@ class AuthTokenRepository(AuthTokenRepositoryPort):
                     id=token.id,
                     user_id=token.user_id,
                     token_type=token.token_type,
-                    token_string=token.token_string,
+                    token_hash=token.token_hash,
+                    jti=token.jti,
                     expires_at=token.expires_at,
                     created_at=token.created_at,
                     revoked=token.revoked,
@@ -96,31 +98,58 @@ class AuthTokenRepository(AuthTokenRepositoryPort):
             logger.error(f"Error retrieving token by ID: {e}")
             raise
     
-    async def get_by_token_string(self, token_string: str) -> Optional[AuthToken]:
+    async def get_by_token_hash(self, token_hash: str) -> Optional[AuthToken]:
         """
-        Retrieve a token by its string value.
+        Retrieve a token by its SHA-256 hash.
         
         Args:
-            token_string: JWT token string
+            token_hash: SHA-256 hash of the JWT token (64 hex characters)
             
         Returns:
             AuthToken entity if found, None otherwise
         """
         try:
             stmt = select(AuthTokenModel).where(
-                AuthTokenModel.token_string == token_string
+                AuthTokenModel.token_hash == token_hash
             )
             result = await self.session.execute(stmt)
             token_model = result.scalar_one_or_none()
             
             if not token_model:
-                logger.debug("Token not found in database")
+                logger.debug("Token hash not found in database")
                 return None
             
             return self._model_to_entity(token_model)
             
         except Exception as e:
-            logger.error(f"Error retrieving token by string: {e}")
+            logger.error(f"Error retrieving token by hash: {e}")
+            raise
+    
+    async def get_by_jti(self, jti: UUID) -> Optional[AuthToken]:
+        """
+        Retrieve a token by its JWT ID (jti).
+        
+        Args:
+            jti: JWT ID (UUID)
+            
+        Returns:
+            AuthToken entity if found, None otherwise
+        """
+        try:
+            stmt = select(AuthTokenModel).where(
+                AuthTokenModel.jti == jti
+            )
+            result = await self.session.execute(stmt)
+            token_model = result.scalar_one_or_none()
+            
+            if not token_model:
+                logger.debug(f"Token with jti {jti} not found in database")
+                return None
+            
+            return self._model_to_entity(token_model)
+            
+        except Exception as e:
+            logger.error(f"Error retrieving token by jti: {e}")
             raise
     
     async def revoke_token(self, token_id: UUID) -> bool:
@@ -199,7 +228,8 @@ class AuthTokenRepository(AuthTokenRepositoryPort):
             token_id=model.id,
             user_id=model.user_id,
             token_type=model.token_type,
-            token_string=model.token_string,
+            token_hash=model.token_hash,
+            jti=model.jti,
             expires_at=model.expires_at,
             created_at=model.created_at,
             revoked=model.revoked,

@@ -35,6 +35,11 @@ class Settings(BaseSettings):
         description="OTP microservice URL"
     )
     OTP_SERVICE_TIMEOUT: int = Field(default=5, description="OTP service timeout in seconds")
+    JANO_SERVICE_URL: str = Field(
+        default="http://jano_microservice:8005",
+        description="JANO security microservice URL"
+    )
+    JANO_SERVICE_TIMEOUT: int = Field(default=10, description="JANO service timeout in seconds")
     
     # CORS
     CORS_ORIGINS: list[str] = Field(

@@ -36,9 +36,9 @@ class UsersServiceClient(UsersServicePort):
         self,
         username: str,
         password: str,
-    ) -> Dict[str, Any]:
+    ) -> Optional[Dict[str, Any]]:
         """Validate user credentials via users_microservice."""
-        url = f"{self.base_url}/api/users/validate-credentials"
+        url = f"{self.base_url}/internal/users/validate-credentials"
         
         payload = {
             "username": username,
@@ -87,7 +87,7 @@ class UsersServiceClient(UsersServicePort):
         password: str,
     ) -> Optional[Dict[str, Any]]:
         """Validate user credentials by email via users_microservice."""
-        url = f"{self.base_url}/api/users/validate-credentials-email"
+        url = f"{self.base_url}/internal/users/validate-credentials-email"
         
         payload = {
             "email": email,
@@ -166,7 +166,7 @@ class UsersServiceClient(UsersServicePort):
     
     async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Get user information by email."""
-        url = f"{self.base_url}/api/users/email/{email}"
+        url = f"{self.base_url}/internal/users/email/{email}"
         
         logger.debug(f"Fetching user data for email: {email}")
         

@@ -27,6 +27,7 @@ from src.infrastructure.adapters.services import (
     JWTService,
     UsersServiceClient,
     OTPServiceClient,
+    JANOServiceClient,
 )
 from src.infrastructure.dependencies import (
     get_token_repository,
@@ -94,7 +95,10 @@ router = APIRouter(
         "User must verify OTP using /auth/verify-login endpoint."
     ),
 )
-async def login(request: LoginRequest) -> LoginInitResponse:
+async def login(
+    request: LoginRequest,
+    http_request: Request,
+) -> LoginInitResponse:
     """
     Login initialization endpoint - Step 1.
     
@@ -102,27 +106,39 @@ async def login(request: LoginRequest) -> LoginInitResponse:
     
     Args:
         request: Login request with email and password
+        http_request: FastAPI request for IP/user agent extraction
         
     Returns:
         LoginInitResponse with OTP sent confirmation
         
     Raises:
         401: Invalid credentials
+        429: Rate limit exceeded
         503: Users or OTP service unavailable
     """
     logger.info(f"Login init request for email: {request.email}")
     
+    # Extract client info for JANO validation
+    ip_address = get_client_ip(http_request)
+    user_agent = get_user_agent(http_request)
+    
     # Create dependencies
     users_service = UsersServiceClient()
     otp_service = OTPServiceClient()
+    jano_service = JANOServiceClient()
     
     # Create and execute use case
     use_case = LoginInitUseCase(
         users_service=users_service,
         otp_service=otp_service,
+        jano_service=jano_service,
     )
     
-    result = await use_case.execute(request)
+    result = await use_case.execute(
+        request=request,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
     
     logger.info(f"OTP sent for email: {request.email}")
     return result
@@ -163,12 +179,7 @@ async def verify_login(
         401: Invalid or expired OTP
         503: Services unavailable
     """
-    logger.info(f"Verify login request for email: {verify_request.email}")
-    
-    # Extract client information
-    ip_address = get_client_ip(http_request)
-    user_agent = get_user_agent(http_request)
-    logger.debug(f"Client IP: {ip_address}, User-Agent: {user_agent[:50]}...")
+    logger.info(f"Verify login request for otp_id: {verify_request.otp_id}")
     
     # Create service dependencies
     jwt_service = JWTService()
@@ -180,19 +191,13 @@ async def verify_login(
         jwt_service=jwt_service,
         users_service=users_service,
         otp_service=otp_service,
-        token_repository=token_repository,
-        session_repository=session_repository,
         access_token_expire_minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
         refresh_token_expire_days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS,
     )
     
-    result = await use_case.execute(
-        verify_request,
-        ip_address=ip_address,
-        user_agent=user_agent,
-    )
+    result = await use_case.execute(verify_request)
     
-    logger.info(f"User logged in successfully via email: {verify_request.email}")
+    logger.info(f"User logged in successfully for otp_id: {verify_request.otp_id}")
     return result
 
 
@@ -351,7 +356,10 @@ class ValidateTokenRequest(BaseModel):
     summary="Validate Token",
     description="Validate a JWT token and return user information.",
 )
-async def validate_token(request: ValidateTokenRequest):
+async def validate_token(
+    request: ValidateTokenRequest, 
+    token_repository: AuthTokenRepositoryPort = Depends(get_token_repository)
+):
     """
     Validate JWT token endpoint.
     
@@ -359,6 +367,7 @@ async def validate_token(request: ValidateTokenRequest):
     
     Args:
         request: Token validation request with token string
+        token_repository: Token repository dependency
         
     Returns:
         User information from token payload
@@ -371,8 +380,15 @@ async def validate_token(request: ValidateTokenRequest):
     jwt_service = JWTService()
     
     try:
-        # Decode and validate token
-        payload = jwt_service.decode_token(request.token)
+        # Use ValidateTokenUseCase with jti verification
+        from src.application.use_cases import ValidateTokenUseCase
+        
+        validate_use_case = ValidateTokenUseCase(
+            jwt_service=jwt_service,
+            token_repository=token_repository,
+        )
+        
+        payload = await validate_use_case.execute(request.token)
         
         logger.info(f"Token validated successfully for user: {payload.sub}")
         

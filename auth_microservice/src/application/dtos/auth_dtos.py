@@ -83,6 +83,7 @@ class LoginInitResponse(BaseModel):
     email: str = Field(..., description="Masked email where OTP was sent")
     otp_id: str = Field(..., description="OTP identifier for validation")
     expires_in: int = Field(..., description="OTP expiration time in seconds")
+    otp_code: Optional[str] = Field(None, description="OTP code (only in development mode)")
     
     class Config:
         """Pydantic config."""
@@ -91,7 +92,8 @@ class LoginInitResponse(BaseModel):
                 "message": "OTP sent to your email",
                 "email": "a***n@siata.gov.co",
                 "otp_id": "123e4567-e89b-12d3-a456-426614174000",
-                "expires_in": 300
+                "expires_in": 300,
+                "otp_code": "123456"
             }
         }
 
@@ -99,15 +101,19 @@ class LoginInitResponse(BaseModel):
 class VerifyLoginRequest(BaseModel):
     """Verify login request - Step 2: Validate OTP and get tokens."""
     
-    email: str = Field(..., description="User email address")
+    otp_id: str = Field(..., description="OTP identifier from login step")
     otp_code: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code")
+    ip_address: Optional[str] = Field(default="0.0.0.0", description="Client IP address")
+    user_agent: Optional[str] = Field(default="Unknown", description="Client user agent")
     
     class Config:
         """Pydantic config."""
         json_schema_extra = {
             "example": {
-                "email": "admin@siata.gov.co",
-                "otp_code": "123456"
+                "otp_id": "6b267ff8-1c93-44cd-a882-acbb8cdc07e8",
+                "otp_code": "123456",
+                "ip_address": "192.168.1.100",
+                "user_agent": "PostmanRuntime/7.32.0"
             }
         }
 

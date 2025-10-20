@@ -3,6 +3,12 @@ from uuid import UUID, uuid4
 from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Optional
+import hashlib
+
+
+def hash_token(token: str) -> str:
+    """Generate SHA-256 hash of a token."""
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
 
 
 class TokenType(str, Enum):
@@ -17,13 +23,15 @@ class AuthToken:
     Entity representing an authentication token.
     
     Encapsulates business logic for JWT token management.
+    Stores only the token hash for security, not the full token.
     """
     
     def __init__(
         self,
         user_id: UUID,
         token_type: TokenType,
-        token_string: str,
+        token_hash: str,  # Changed from token_string to token_hash
+        jti: UUID,  # JWT ID for token identification
         expires_at: datetime,
         token_id: Optional[UUID] = None,
         created_at: Optional[datetime] = None,
@@ -35,7 +43,8 @@ class AuthToken:
         Args:
             user_id: UUID of the user who owns this token
             token_type: Type of token (ACCESS, REFRESH, SESSION)
-            token_string: The JWT token string
+            token_hash: SHA-256 hash of the JWT token (not the token itself)
+            jti: JWT ID (unique identifier for the token)
             expires_at: When the token expires
             token_id: Optional UUID for the token (generated if not provided)
             created_at: Optional creation timestamp (defaults to now)
@@ -47,8 +56,11 @@ class AuthToken:
         if not isinstance(token_type, TokenType):
             raise TypeError(f"token_type must be TokenType, got {type(token_type)}")
         
-        if not isinstance(token_string, str) or not token_string.strip():
-            raise ValueError("token_string must be a non-empty string")
+        if not isinstance(token_hash, str) or not token_hash.strip():
+            raise ValueError("token_hash must be a non-empty string")
+        
+        if not isinstance(jti, UUID):
+            raise TypeError(f"jti must be UUID, got {type(jti)}")
         
         if not isinstance(expires_at, datetime):
             raise TypeError("expires_at must be a datetime")
@@ -56,7 +68,8 @@ class AuthToken:
         self._id = token_id or uuid4()
         self._user_id = user_id
         self._token_type = token_type
-        self._token_string = token_string
+        self._token_hash = token_hash  # Changed
+        self._jti = jti  # NEW
         self._expires_at = expires_at
         self._created_at = created_at or datetime.now(timezone.utc)
         self._revoked = revoked
@@ -78,9 +91,20 @@ class AuthToken:
         return self._token_type
     
     @property
+    def token_hash(self) -> str:
+        """Get token hash."""
+        return self._token_hash
+    
+    @property
+    def jti(self) -> UUID:
+        """Get JWT ID."""
+        return self._jti
+    
+    # Deprecated property for backward compatibility
+    @property
     def token_string(self) -> str:
-        """Get token string."""
-        return self._token_string
+        """Deprecated: Use token_hash instead."""
+        return self._token_hash
     
     @property
     def expires_at(self) -> datetime:

@@ -19,6 +19,7 @@ class AuthErrorCode(str, Enum):
     # Service integration errors (AUTH_100-199)
     USERS_SERVICE_UNAVAILABLE = "AUTH_101"
     OTP_SERVICE_UNAVAILABLE = "AUTH_102"
+    JANO_SERVICE_UNAVAILABLE = "AUTH_103"
     
     # OTP errors (AUTH_200-299)
     OTP_VERIFICATION_REQUIRED = "AUTH_201"
@@ -155,6 +156,44 @@ class InvalidOTPException(AuthException):
         )
 
 
+class JANOServiceUnavailableException(AuthException):
+    """Raised when JANO service is unavailable."""
+    
+    def __init__(self, details: Optional[str] = None):
+        super().__init__(
+            code=AuthErrorCode.JANO_SERVICE_UNAVAILABLE,
+            message="JANO service unavailable",
+            details=details or "Unable to connect to JANO security service",
+            status_code=503,
+        )
+
+
+class PasswordPolicyViolationException(AuthException):
+    """Raised when password doesn't meet JANO policy requirements."""
+    
+    def __init__(self, violations: list, details: Optional[str] = None):
+        violation_messages = ", ".join(violations) if violations else "Password policy violation"
+        super().__init__(
+            code=AuthErrorCode.VALIDATION_ERROR,
+            message="Password policy violation",
+            details=details or violation_messages,
+            status_code=400,
+        )
+        self.violations = violations
+
+
+class RateLimitExceededException(AuthException):
+    """Raised when rate limit is exceeded."""
+    
+    def __init__(self, details: Optional[str] = None):
+        super().__init__(
+            code=AuthErrorCode.VALIDATION_ERROR,
+            message="Rate limit exceeded",
+            details=details or "Too many requests. Please try again later.",
+            status_code=429,
+        )
+
+
 __all__ = [
     "AuthErrorCode",
     "AuthException",
@@ -167,4 +206,7 @@ __all__ = [
     "OTPServiceUnavailableException",
     "OTPVerificationRequiredException",
     "InvalidOTPException",
+    "JANOServiceUnavailableException",
+    "PasswordPolicyViolationException",
+    "RateLimitExceededException",
 ]

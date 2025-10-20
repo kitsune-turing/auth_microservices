@@ -3,7 +3,7 @@
 Implements JWT token generation and validation using python-jose.
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
@@ -60,7 +60,7 @@ class JWTService(JWTServicePort):
         if expires_delta is None:
             expires_delta = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expire = now + expires_delta
         
         # Generate unique token ID
@@ -102,7 +102,7 @@ class JWTService(JWTServicePort):
         if expires_delta is None:
             expires_delta = timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expire = now + expires_delta
         
         # Generate unique token ID
@@ -136,7 +136,7 @@ class JWTService(JWTServicePort):
             
             # Check if token is expired
             exp = payload.get("exp")
-            if exp and datetime.utcnow().timestamp() > exp:
+            if exp and datetime.now(timezone.utc).timestamp() > exp:
                 raise TokenExpiredException()
             
             # Create TokenPayload

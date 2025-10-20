@@ -29,8 +29,13 @@ class AuthTokenRepositoryPort(ABC):
         pass
     
     @abstractmethod
-    async def get_by_token_string(self, token_string: str) -> Optional[AuthToken]:
-        """Retrieve token by its string value."""
+    async def get_by_token_hash(self, token_hash: str) -> Optional[AuthToken]:
+        """Retrieve token by its SHA-256 hash."""
+        pass
+    
+    @abstractmethod
+    async def get_by_jti(self, jti: UUID) -> Optional[AuthToken]:
+        """Retrieve token by its JWT ID (jti)."""
         pass
     
     @abstractmethod
