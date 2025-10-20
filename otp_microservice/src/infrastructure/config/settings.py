@@ -14,10 +14,38 @@ class Settings(BaseSettings):
     SERVICE_HOST: str = Field(default="0.0.0.0", description="Service host")
     
     # Database Configuration
+    DATABASE_USER: str = Field(default="otp_service", description="Database username")
+    DATABASE_PASSWORD: str = Field(default="", description="Database password (set via env or .env, DO NOT commit)")
+    DATABASE_HOST: str = Field(default="postgres", description="Database host")
+    DATABASE_PORT: int = Field(default=5432, description="Database port")
+    DATABASE_NAME: str = Field(default="auth_login_services", description="Database name")
+
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://otp_service:otp_service_password@postgres:5432/auth_login_services",
-        description="Database connection URL"
+        default="",
+        description="Database connection URL; if empty it will be constructed from components above"
     )
+
+    @field_validator("DATABASE_URL", mode="after")
+    def _assemble_database_url(cls, v, info):
+        """
+        Assemble DATABASE_URL from components when DATABASE_URL is not provided directly.
+        This ensures the password is sourced from environment variables rather than hard-coded.
+        """
+        if v:
+            return v
+        data = info.data or {}
+        user = data.get("DATABASE_USER", "otp_service")
+        password = data.get("DATABASE_PASSWORD", "")
+        host = data.get("DATABASE_HOST", "postgres")
+        port = data.get("DATABASE_PORT", 5432)
+        name = data.get("DATABASE_NAME", "auth_login_services")
+
+        if not password:
+            raise ValueError(
+                "DATABASE_PASSWORD must be set in the environment or .env for a secure database connection"
+            )
+        return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{name}"
+
     DATABASE_POOL_SIZE: int = Field(default=5, description="Database pool size")
     DATABASE_MAX_OVERFLOW: int = Field(default=10, description="Database max overflow")
     DATABASE_POOL_PRE_PING: bool = Field(default=True, description="Test connections")

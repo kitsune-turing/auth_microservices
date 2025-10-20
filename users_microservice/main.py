@@ -40,12 +40,12 @@ async def lifespan(app: FastAPI):
     )
     logger.info(f"JANO client initialized with URL: {jano_service_url}")
     
-    # Check JANO availability
+
     jano_healthy = await jano_client_module.jano_client.health_check()
     if jano_healthy:
-        logger.info("✅ JANO service is available")
+        logger.info("JANO service is available")
     else:
-        logger.warning("⚠️  JANO service is not available - password validation may fail")
+        logger.warning("JANO service is not available - password validation may fail")
     
     yield
     
@@ -73,7 +73,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Configure for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
