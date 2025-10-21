@@ -15,6 +15,10 @@ from src.application.use_cases.validate_credentials_by_email_use_case import Val
 from src.application.use_cases.get_user_use_case import GetUserUseCase
 from src.application.use_cases.get_user_by_email_use_case import GetUserByEmailUseCase
 from src.application.use_cases.create_user_use_case import CreateUserUseCase
+from src.application.use_cases.update_user_use_case import UpdateUserUseCase
+from src.application.use_cases.get_users_use_case import GetUsersUseCase
+from src.application.use_cases.disable_user_use_case import DisableUserUseCase
+from src.application.use_cases.enable_user_use_case import EnableUserUseCase
 
 
 # ============================================================================
@@ -78,6 +82,34 @@ def get_user_by_email_use_case(
     return GetUserByEmailUseCase(user_repository)
 
 
+def get_update_user_use_case(
+    user_repository: UserRepository = Depends(get_user_repository),
+) -> UpdateUserUseCase:
+    """Get update user use case."""
+    return UpdateUserUseCase(user_repository)
+
+
+def get_get_users_use_case(
+    user_repository: UserRepository = Depends(get_user_repository),
+) -> GetUsersUseCase:
+    """Get list users use case."""
+    return GetUsersUseCase(user_repository)
+
+
+def get_disable_user_use_case(
+    user_repository: UserRepository = Depends(get_user_repository),
+) -> DisableUserUseCase:
+    """Get disable user use case."""
+    return DisableUserUseCase(user_repository)
+
+
+def get_enable_user_use_case(
+    user_repository: UserRepository = Depends(get_user_repository),
+) -> EnableUserUseCase:
+    """Get enable user use case."""
+    return EnableUserUseCase(user_repository)
+
+
 __all__ = [
     "get_user_repository",
     "get_password_service",
@@ -86,4 +118,8 @@ __all__ = [
     "get_get_user_use_case",
     "get_user_by_email_use_case",
     "get_create_user_use_case",
+    "get_update_user_use_case",
+    "get_get_users_use_case",
+    "get_disable_user_use_case",
+    "get_enable_user_use_case",
 ]
