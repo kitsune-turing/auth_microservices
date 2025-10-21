@@ -44,7 +44,7 @@ class ValidateCredentialsByEmailUseCase:
             raise InvalidCredentialsException("Invalid email or password")
         
         # Check if user is active
-        if not user.get('is_active', False):
+        if user.get('status') != 'active':
             logger.warning(f"User is inactive: {email}")
             raise InvalidCredentialsException("User account is disabled")
         
@@ -68,6 +68,6 @@ class ValidateCredentialsByEmailUseCase:
             "email": user['email'],
             "role": user['role'],
             "team_name": user.get('team_name'),
-            "is_active": user['is_active'],
+            "is_active": user.get('status') == 'active',
             "permissions": permissions
         }

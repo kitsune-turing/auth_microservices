@@ -55,7 +55,7 @@ class ValidateCredentialsUseCase:
             return None
         
         # 2. Check if user is active
-        if not user.get('is_active', False):
+        if user.get('status') != 'active':
             logger.warning(f"User is inactive: {username}")
             raise Exception("User account is disabled")
         
@@ -80,7 +80,7 @@ class ValidateCredentialsUseCase:
             email=user['email'],
             role=user['role'],
             team_name=user.get('team_name'),
-            is_active=user['is_active'],
+            is_active=user.get('status') == 'active',
             permissions=permissions,
         )
 

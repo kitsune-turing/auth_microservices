@@ -46,7 +46,8 @@ class GetUserByEmailUseCase:
             "last_name": user['last_name'],
             "role": user['role'],
             "team_name": user.get('team_name'),
-            "is_active": user['is_active'],
+            "status": user['status'],
+            "is_mfa_enabled": user.get('is_mfa_enabled', False),
             "created_at": user['created_at'].isoformat() if user.get('created_at') else None,
             "updated_at": user['updated_at'].isoformat() if user.get('updated_at') else None
         }

@@ -95,7 +95,7 @@ class CreateUserUseCase:
             name=request.name,
             last_name=request.last_name,
             role=request.role,
-            team_name=request.team_name,
+            team_id=request.team_id,
         )
         
         logger.info(
