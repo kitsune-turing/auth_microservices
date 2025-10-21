@@ -21,7 +21,7 @@ class AuthMiddleware:
             auth_service_url: Base URL of auth microservice
         """
         self.auth_service_url = auth_service_url.rstrip('/')
-        self.validate_url = f"{self.auth_service_url}/api/auth/validate-token"
+        self.validate_url = f"{self.auth_service_url}/api/auth/validate-token-direct"
     
     async def verify_token(self, authorization: str) -> dict:
         """
