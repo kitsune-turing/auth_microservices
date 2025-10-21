@@ -20,7 +20,7 @@ class UserRepositoryPort(ABC):
         name: str,
         last_name: str,
         role: str,
-        team_name: Optional[str] = None,
+        team_id: Optional[UUID] = None,
     ) -> UUID:
         """Create a new user and return the user ID."""
         pass
@@ -47,9 +47,9 @@ class UserRepositoryPort(ABC):
         email: Optional[str] = None,
         name: Optional[str] = None,
         last_name: Optional[str] = None,
-        team_name: Optional[str] = None,
-    ) -> bool:
-        """Update user data. Returns True if successful."""
+        team_id: Optional[UUID] = None,
+    ) -> Optional[dict]:
+        """Update user data. Returns updated user dict or None if failed."""
         pass
     
     @abstractmethod
@@ -62,19 +62,19 @@ class UserRepositoryPort(ABC):
         self,
         user_id: UUID,
         role: str,
-        team_name: Optional[str] = None,
+        team_id: Optional[UUID] = None,
     ) -> bool:
         """Update user role and team. Returns True if successful."""
         pass
     
     @abstractmethod
-    async def disable_user(self, user_id: UUID) -> bool:
-        """Disable user (soft delete). Returns True if successful."""
+    async def disable_user(self, user_id: UUID) -> Optional[dict]:
+        """Disable user (soft delete). Returns updated user dict or None."""
         pass
     
     @abstractmethod
-    async def enable_user(self, user_id: UUID) -> bool:
-        """Enable user. Returns True if successful."""
+    async def enable_user(self, user_id: UUID) -> Optional[dict]:
+        """Enable user. Returns updated user dict or None."""
         pass
     
     @abstractmethod
@@ -83,7 +83,7 @@ class UserRepositoryPort(ABC):
         page: int = 1,
         size: int = 10,
         role: Optional[str] = None,
-        is_active: Optional[bool] = None,
+        active_only: bool = False,
     ) -> tuple[List[dict], int]:
         """
         List users with pagination and filters.

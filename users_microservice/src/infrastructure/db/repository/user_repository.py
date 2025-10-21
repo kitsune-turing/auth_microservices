@@ -30,7 +30,7 @@ class UserRepository(UserRepositoryPort):
         name: str,
         last_name: str,
         role: str,
-        team_name: Optional[str] = None,
+        team_id: Optional[UUID] = None,
     ) -> UUID:
         """Create a new user and return the user ID."""
         try:
@@ -41,7 +41,7 @@ class UserRepository(UserRepositoryPort):
                 name=name,
                 last_name=last_name,
                 role=role,
-                team_name=team_name,
+                team_id=team_id,
             )
             self.session.add(user)
             await self.session.commit()
@@ -58,12 +58,13 @@ class UserRepository(UserRepositoryPort):
     async def get_user_by_id(self, user_id: UUID) -> Optional[dict]:
         """Get user by ID. Returns dict with user data or None."""
         try:
-            # Use raw SQL with explicit schema
+            # Use raw SQL with explicit schema and LEFT JOIN for team name
             query = text("""
-                SELECT user_id, username, email, password_hash, first_name, last_name, role, 
-                       team_id, status, created_at, updated_at
-                FROM siata_auth.users
-                WHERE user_id = :user_id
+                SELECT u.user_id, u.username, u.email, u.password_hash, u.first_name, u.last_name, u.role, 
+                       u.team_id, u.status, u.created_at, u.updated_at, t.team_name, u.is_mfa_enabled
+                FROM siata_auth.users u
+                LEFT JOIN siata_auth.teams t ON u.team_id = t.team_id
+                WHERE u.user_id = :user_id
             """)
             result = await self.session.execute(query, {"user_id": str(user_id)})
             row = result.first()
@@ -78,9 +79,11 @@ class UserRepository(UserRepositoryPort):
                     'last_name': row[5],
                     'role': row[6],
                     'team_id': row[7],
-                    'is_active': row[8] == 'active',
+                    'status': row[8],
                     'created_at': row[9],
-                    'updated_at': row[10]
+                    'updated_at': row[10],
+                    'team_name': row[11],
+                    'is_mfa_enabled': row[12],
                 }
             return None
             
@@ -91,12 +94,13 @@ class UserRepository(UserRepositoryPort):
     async def get_user_by_username(self, username: str) -> Optional[dict]:
         """Get user by username. Returns dict with user data or None."""
         try:
-            # Use raw SQL with explicit schema
+            # Use raw SQL with explicit schema and LEFT JOIN for team name
             query = text("""
-                SELECT user_id, username, email, password_hash, first_name, last_name, role, 
-                       team_id, status, created_at, updated_at
-                FROM siata_auth.users
-                WHERE username = :username
+                SELECT u.user_id, u.username, u.email, u.password_hash, u.first_name, u.last_name, u.role, 
+                       u.team_id, u.status, u.created_at, u.updated_at, t.team_name, u.is_mfa_enabled
+                FROM siata_auth.users u
+                LEFT JOIN siata_auth.teams t ON u.team_id = t.team_id
+                WHERE u.username = :username
             """)
             result = await self.session.execute(query, {"username": username})
             row = result.first()
@@ -111,9 +115,11 @@ class UserRepository(UserRepositoryPort):
                     'last_name': row[5],
                     'role': row[6],
                     'team_id': row[7],
-                    'is_active': row[8] == 'active',
+                    'status': row[8],
                     'created_at': row[9],
-                    'updated_at': row[10]
+                    'updated_at': row[10],
+                    'team_name': row[11],
+                    'is_mfa_enabled': row[12],
                 }
             return None
             
@@ -124,12 +130,13 @@ class UserRepository(UserRepositoryPort):
     async def get_user_by_email(self, email: str) -> Optional[dict]:
         """Get user by email. Returns dict with user data (including password_hash) or None."""
         try:
-            # Use raw SQL with explicit schema
+            # Use raw SQL with explicit schema and LEFT JOIN for team name
             query = text("""
-                SELECT user_id, username, email, password_hash, first_name, last_name, role, 
-                       team_id, status, created_at, updated_at
-                FROM siata_auth.users
-                WHERE email = :email
+                SELECT u.user_id, u.username, u.email, u.password_hash, u.first_name, u.last_name, u.role, 
+                       u.team_id, u.status, u.created_at, u.updated_at, t.team_name, u.is_mfa_enabled
+                FROM siata_auth.users u
+                LEFT JOIN siata_auth.teams t ON u.team_id = t.team_id
+                WHERE u.email = :email
             """)
             result = await self.session.execute(query, {"email": email})
             row = result.first()
@@ -144,9 +151,11 @@ class UserRepository(UserRepositoryPort):
                     'last_name': row[5],
                     'role': row[6],
                     'team_id': row[7],
-                    'is_active': row[8] == 'active',
+                    'status': row[8],
                     'created_at': row[9],
-                    'updated_at': row[10]
+                    'updated_at': row[10],
+                    'team_name': row[11],
+                    'is_mfa_enabled': row[12],
                 }
             return None
             
@@ -160,9 +169,9 @@ class UserRepository(UserRepositoryPort):
         email: Optional[str] = None,
         name: Optional[str] = None,
         last_name: Optional[str] = None,
-        team_name: Optional[str] = None,
-    ) -> bool:
-        """Update user data. Returns True if successful."""
+        team_id: Optional[UUID] = None,
+    ) -> Optional[dict]:
+        """Update user data. Returns updated user dict or None if failed."""
         try:
             # Build update values dict
             update_values = {}
@@ -172,11 +181,11 @@ class UserRepository(UserRepositoryPort):
                 update_values['name'] = name
             if last_name is not None:
                 update_values['last_name'] = last_name
-            if team_name is not None:
-                update_values['team_name'] = team_name
+            if team_id is not None:
+                update_values['team_id'] = team_id
             
             if not update_values:
-                return False  # Nothing to update
+                return None  # Nothing to update
             
             stmt = (
                 update(UserModel)
@@ -188,8 +197,9 @@ class UserRepository(UserRepositoryPort):
             
             if result.rowcount > 0:
                 logger.info(f"User {user_id} updated")
-                return True
-            return False
+                # Return the updated user
+                return await self.get_user_by_id(user_id)
+            return None
             
         except Exception as e:
             await self.session.rollback()
@@ -221,14 +231,14 @@ class UserRepository(UserRepositoryPort):
         self,
         user_id: UUID,
         role: str,
-        team_name: Optional[str] = None,
+        team_id: Optional[UUID] = None,
     ) -> bool:
         """Update user role and team. Returns True if successful."""
         try:
             stmt = (
                 update(UserModel)
                 .where(UserModel.id == user_id)
-                .values(role=role, team_name=team_name)
+                .values(role=role, team_id=team_id)
             )
             result = await self.session.execute(stmt)
             await self.session.commit()
@@ -243,42 +253,44 @@ class UserRepository(UserRepositoryPort):
             logger.error(f"Failed to update role: {str(e)}")
             raise
     
-    async def disable_user(self, user_id: UUID) -> bool:
-        """Disable user (soft delete). Returns True if successful."""
+    async def disable_user(self, user_id: UUID) -> Optional[dict]:
+        """Disable user (set status to inactive). Returns updated user dict or None."""
         try:
             stmt = (
                 update(UserModel)
                 .where(UserModel.id == user_id)
-                .values(is_active=False)
+                .values(status='inactive')
             )
             result = await self.session.execute(stmt)
             await self.session.commit()
             
             if result.rowcount > 0:
                 logger.info(f"User {user_id} disabled")
-                return True
-            return False
+                # Return the updated user
+                return await self.get_user_by_id(user_id)
+            return None
             
         except Exception as e:
             await self.session.rollback()
             logger.error(f"Failed to disable user: {str(e)}")
             raise
     
-    async def enable_user(self, user_id: UUID) -> bool:
-        """Enable user. Returns True if successful."""
+    async def enable_user(self, user_id: UUID) -> Optional[dict]:
+        """Enable user (set status to active). Returns updated user dict or None."""
         try:
             stmt = (
                 update(UserModel)
                 .where(UserModel.id == user_id)
-                .values(is_active=True)
+                .values(status='active')
             )
             result = await self.session.execute(stmt)
             await self.session.commit()
             
             if result.rowcount > 0:
                 logger.info(f"User {user_id} enabled")
-                return True
-            return False
+                # Return the updated user
+                return await self.get_user_by_id(user_id)
+            return None
             
         except Exception as e:
             await self.session.rollback()
@@ -290,7 +302,7 @@ class UserRepository(UserRepositoryPort):
         page: int = 1,
         size: int = 10,
         role: Optional[str] = None,
-        is_active: Optional[bool] = None,
+        active_only: bool = False,
     ) -> tuple[List[dict], int]:
         """
         List users with pagination and filters.
@@ -301,8 +313,8 @@ class UserRepository(UserRepositoryPort):
             filters = []
             if role is not None:
                 filters.append(UserModel.role == role)
-            if is_active is not None:
-                filters.append(UserModel.is_active == is_active)
+            if active_only:
+                filters.append(UserModel.status == 'active')
             
             # Count total
             count_stmt = select(func.count(UserModel.id))
