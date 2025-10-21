@@ -77,7 +77,8 @@ class UserResponse(BaseModel):
     last_name: str
     role: str
     team_name: Optional[str] = None
-    is_active: bool
+    status: str
+    is_mfa_enabled: bool
     created_at: datetime
     updated_at: datetime
     
@@ -92,7 +93,8 @@ class UserResponse(BaseModel):
                 "last_name": "User",
                 "role": "external",
                 "team_name": None,
-                "is_active": True,
+                "status": "pending_activation",
+                "is_mfa_enabled": False,
                 "created_at": "2024-01-15T10:30:00Z",
                 "updated_at": "2024-01-15T10:30:00Z"
             }
@@ -107,15 +109,15 @@ class CreateUserRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=150)
     last_name: str = Field(..., min_length=1, max_length=150)
     role: str = Field(..., pattern="^(root|external|user_siata|admin)$")
-    team_name: Optional[str] = Field(None, max_length=100)
+    team_id: Optional[UUID] = Field(None, description="Team ID (UUID) - required for user_siata role")
     
-    @validator('team_name')
-    def validate_team_name(cls, v, values):
-        """Team name is optional for admin and required for user_siata role."""
+    @validator('team_id')
+    def validate_team_id(cls, v, values):
+        """Team ID is optional for admin and required for user_siata role."""
         if values.get('role') == 'user_siata' and not v:
-            raise ValueError('team_name is required for user_siata role')
+            raise ValueError('team_id is required for user_siata role')
         if values.get('role') not in ['user_siata', 'admin'] and v:
-            raise ValueError('team_name should only be set for user_siata or admin roles')
+            raise ValueError('team_id should only be set for user_siata or admin roles')
         return v
     
     class Config:
@@ -127,7 +129,7 @@ class CreateUserRequest(BaseModel):
                 "name": "Monitoring",
                 "last_name": "Team",
                 "role": "user_siata",
-                "team_name": "monitoring"
+                "team_id": "b0e7b80c-e7fe-4cfb-a6cf-2ca75216cc55"
             }
         }
 
@@ -155,7 +157,7 @@ class UpdateUserRequest(BaseModel):
     email: Optional[EmailStr] = None
     name: Optional[str] = Field(None, min_length=1, max_length=150)
     last_name: Optional[str] = Field(None, min_length=1, max_length=150)
-    team_name: Optional[str] = Field(None, max_length=100)
+    team_id: Optional[UUID] = Field(None, description="Team ID (UUID)")
     
     class Config:
         json_schema_extra = {
@@ -192,15 +194,15 @@ class ChangePasswordRequest(BaseModel):
 class UpdateRoleRequest(BaseModel):
     """Request to update user role (only ROOT can do this)."""
     role: str = Field(..., pattern="^(root|external|user_siata|admin)$")
-    team_name: Optional[str] = Field(None, max_length=100)
+    team_id: Optional[UUID] = Field(None, description="Team ID (UUID)")
     
-    @validator('team_name')
-    def validate_team_name(cls, v, values):
-        """Team name is optional for admin and required for user_siata role."""
+    @validator('team_id')
+    def validate_team_id(cls, v, values):
+        """Team ID is optional for admin and required for user_siata role."""
         if values.get('role') == 'user_siata' and not v:
-            raise ValueError('team_name is required for user_siata role')
+            raise ValueError('team_id is required for user_siata role')
         if values.get('role') not in ['user_siata', 'admin'] and v:
-            raise ValueError('team_name should only be set for user_siata or admin roles')
+            raise ValueError('team_id should only be set for user_siata or admin roles')
         return v
 
 
