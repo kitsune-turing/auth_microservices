@@ -411,4 +411,55 @@ async def validate_token(
         )
 
 
+@router.post(
+    "/validate-token-direct",
+    status_code=status.HTTP_200_OK,
+    summary="Validate Token (Direct JWT only)",
+    description="Validate a JWT token without checking database. Used by other microservices.",
+)
+async def validate_token_direct(request: ValidateTokenRequest):
+    """
+    Validate JWT token directly without database verification.
+    
+    This endpoint validates the JWT signature and claims without checking
+    if the token exists in the database. Useful for inter-service validation.
+    
+    Args:
+        request: Token validation request with token string
+        
+    Returns:
+        User information from token payload
+        
+    Raises:
+        HTTPException 401: Invalid or expired token
+    """
+    logger.info("Token validation (direct JWT) request received")
+    
+    jwt_service = JWTService()
+    
+    try:
+        # Decode and validate JWT without database check
+        payload = jwt_service.decode_token(request.token)
+        
+        logger.info(f"Token validated successfully for user: {payload.sub}")
+        
+        # Return user info
+        return {
+            "user_id": payload.sub,
+            "username": payload.username,
+            "role": payload.role,
+            "permissions": payload.permissions,
+            "team_name": payload.team_name,
+        }
+        
+    except Exception as e:
+        logger.warning(f"Token validation (direct) failed: {str(e)}")
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 __all__ = ["router"]
