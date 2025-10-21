@@ -9,14 +9,9 @@ Este documento contiene los comandos CURL necesarios para:
 ## Variables Globales
 
 ```bash
-# Base URLs
 AUTH_URL="http://localhost:8001"
 USERS_URL="http://localhost:8006"
-
-# Team ID para usuarios user_siata
 TEAM_ID="329454c0-c6cb-411b-80f6-2e196bff1947"
-
-# Credenciales root
 ROOT_EMAIL="admin@siata.gov.co"
 ROOT_PASSWORD="Admin123!"
 ```
@@ -33,7 +28,7 @@ curl -X POST "${AUTH_URL}/api/auth/login" \
   -d '{
     "email": "admin@siata.gov.co",
     "password": "Admin123!"
-  }' | jq .
+  }'
 ```
 
 **Response esperado:**
@@ -64,7 +59,7 @@ curl -X POST "${AUTH_URL}/api/auth/verify-login" \
   -d '{
     "otp_id": "'"${OTP_ID}"'",
     "otp_code": "'"${OTP_CODE}"'"
-  }' | jq .
+  }'
 ```
 
 **Response esperado:**
@@ -100,7 +95,7 @@ curl -X POST "${USERS_URL}/api/users" \
     "name": "Usuario",
     "last_name": "Externo",
     "role": "external"
-  }' | jq .
+  }'
 ```
 
 **Response esperado:**
@@ -179,7 +174,7 @@ curl -X POST "${USERS_URL}/api/users" \
     "last_name": "SIATA",
     "role": "user_siata",
     "team_id": "329454c0-c6cb-411b-80f6-2e196bff1947"
-  }' | jq .
+  }'
 ```
 
 **Response esperado:**
@@ -194,6 +189,8 @@ curl -X POST "${USERS_URL}/api/users" \
   "team_id": "329454c0-c6cb-411b-80f6-2e196bff1947",
   "status": "pending_activation"
 }
+
+
 ```
 
 **Notas:**
@@ -203,137 +200,167 @@ curl -X POST "${USERS_URL}/api/users" \
 
 ---
 
-## Validación de Restricciones por Rol
 
-### External
-- ✓ No requiere `team_id`
-- ✓ Puede ser null
+## 6. MODIFICAR USUARIO (Actualizar información)
 
-### Root
-- ✓ No requiere `team_id`
-- ✓ Puede ser null
+**Endpoint:** `PUT /api/users/{user_id}`
 
-### User_SIATA
-- ✗ Requiere `team_id` (obligatorio)
-- ✗ No puede ser null
-- ✗ Debe ser un UUID válido existente
-
-### Admin
-- ✓ No requiere `team_id`
-- ✓ Puede ser null
-
----
-
-## Script Bash Completo
-
-Si prefieres ejecutar todo en un script bash:
+Requiere: JWT Token (Bearer Token) y rol ROOT
 
 ```bash
-#!/bin/bash
+# Primero obtener el user_id del usuario que queremos modificar
+USER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-# Variables
-AUTH_URL="http://localhost:8001"
-USERS_URL="http://localhost:8006"
-TEAM_ID="329454c0-c6cb-411b-80f6-2e196bff1947"
-
-# 1. LOGIN
-echo "1. Ingresando como root..."
-LOGIN_RESPONSE=$(curl -s -X POST "${AUTH_URL}/api/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@siata.gov.co",
-    "password": "Admin123!"
-  }')
-
-OTP_ID=$(echo $LOGIN_RESPONSE | jq -r '.otp_id')
-OTP_CODE=$(echo $LOGIN_RESPONSE | jq -r '.otp_code')
-echo "OTP ID: $OTP_ID"
-echo "OTP CODE: $OTP_CODE"
-
-# 2. VERIFY OTP
-echo -e "\n2. Verificando OTP..."
-AUTH_RESPONSE=$(curl -s -X POST "${AUTH_URL}/api/auth/verify-login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "otp_id": "'"${OTP_ID}"'",
-    "otp_code": "'"${OTP_CODE}"'"
-  }')
-
-ACCESS_TOKEN=$(echo $AUTH_RESPONSE | jq -r '.access_token')
-echo "Token obtenido (primeros 50 caracteres): ${ACCESS_TOKEN:0:50}..."
-
-# 3. CREATE EXTERNAL USER
-echo -e "\n3. Creando usuario EXTERNAL..."
-EXTERNAL=$(curl -s -X POST "${USERS_URL}/api/users" \
+curl -X PUT "${USERS_URL}/api/users/${USER_ID}" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{
-    "username": "usuario_externo",
-    "email": "usuario.externo@example.com",
-    "password": "ExternalPass@123",
-    "name": "Usuario",
-    "last_name": "Externo",
-    "role": "external"
-  }')
-
-echo $EXTERNAL | jq .
-
-# 4. CREATE ROOT USER
-echo -e "\n4. Creando usuario ROOT..."
-ROOT=$(curl -s -X POST "${USERS_URL}/api/users" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -d '{
-    "username": "usuario_root",
-    "email": "usuario.root@siata.gov.co",
-    "password": "RootPass@123",
-    "name": "Administrador",
-    "last_name": "Root",
-    "role": "root"
-  }')
-
-echo $ROOT | jq .
-
-# 5. CREATE USER_SIATA
-echo -e "\n5. Creando usuario USER_SIATA..."
-USER_SIATA=$(curl -s -X POST "${USERS_URL}/api/users" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  -d '{
-    "username": "usuario_meteorologo",
-    "email": "usuario.meteorologo@siata.gov.co",
-    "password": "MeteoPass@123",
-    "name": "Meteorólogo",
-    "last_name": "SIATA",
-    "role": "user_siata",
-    "team_id": "'"${TEAM_ID}"'"
-  }')
-
-echo $USER_SIATA | jq .
-
-echo -e "\n✓ Flujo completado exitosamente"
+    "name": "Nombre Actualizado",
+    "last_name": "Apellido Actualizado",
+    "email": "nuevo.email@siata.gov.co"
+  }'
 ```
+
+**Response esperado:**
+```json
+{
+  "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "username": "usuario_externo",
+  "email": "nuevo.email@siata.gov.co",
+  "name": "Nombre Actualizado",
+  "last_name": "Apellido Actualizado",
+  "role": "external",
+  "status": "pending_activation"
+}
+```
+
+**Notas:**
+- Todos los campos son opcionales
+- Solo se actualizan los campos enviados
+- El email debe ser único
+- No se puede cambiar `username`, `role` o `team_id` en este endpoint
 
 ---
 
-## Troubleshooting
+## 7. LISTAR TODOS LOS USUARIOS
 
-### Error: "Invalid token"
-- Verificar que el token no haya expirado (válido por 30 minutos)
-- Obtener un nuevo token ejecutando nuevamente los pasos 1 y 2
+**Endpoint:** `GET /api/users`
 
-### Error: "User not found"
-- Verificar las credenciales root (`admin@siata.gov.co` / `Admin123!`)
+Requiere: JWT Token (Bearer Token) y rol ROOT
 
-### Error: "Email already in use"
-- Usar emails únicos para cada usuario
-- Cambiar el dominio o añadir timestamp
+```bash
+# Listar usuarios con paginación (página 1, 10 usuarios por página)
+curl -X GET "${USERS_URL}/api/users?page=1&size=10" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
+```
 
-### Error: "Invalid team_id"
-- Verificar que el team_id sea un UUID válido
-- Verificar que el team exista en la tabla de teams
+**Con filtros opcionales:**
 
-### Error: "Unauthorized (401)"
-- Verificar que el token sea incluido en el header `Authorization: Bearer {token}`
-- Verificar que el formato sea exactamente: `Bearer {token}` (con espacio)
+```bash
+# Listar solo usuarios activos
+curl -X GET "${USERS_URL}/api/users?page=1&size=10&active_only=true" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
+# Listar solo usuarios con rol específico
+curl -X GET "${USERS_URL}/api/users?page=1&size=10&role=user_siata" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
+
+# Combinación de filtros
+curl -X GET "${USERS_URL}/api/users?page=1&size=10&role=external&active_only=true" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
+**Response esperado:**
+```json
+{
+  "items": [
+    {
+      "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "username": "usuario_externo",
+      "email": "usuario.externo@example.com",
+      "name": "Usuario",
+      "last_name": "Externo",
+      "role": "external",
+      "status": "active"
+    }
+  ],
+  "total": 15,
+  "page": 1,
+  "size": 10,
+  "pages": 2
+}
+```
+
+**Parámetros de Paginación:**
+- `page`: Número de página (comienza en 1). Default: 1
+- `size`: Cantidad de usuarios por página (máximo 100). Default: 10
+- `role`: Filtrar por rol (external, root, user_siata, admin). Opcional
+- `active_only`: Si es `true`, solo retorna usuarios activos. Default: false
+
+---
+
+## 8. DESHABILITAR USUARIO
+
+**Endpoint:** `PATCH /api/users/{user_id}/disable`
+
+Requiere: JWT Token (Bearer Token) y rol ROOT
+
+```bash
+# Obtener el user_id del usuario a deshabilitar
+USER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+curl -X PATCH "${USERS_URL}/api/users/${USER_ID}/disable" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
+**Response esperado:**
+```json
+{
+  "message": "User xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx disabled successfully",
+  "user_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "status": "inactive"
+}
+```
+
+**Notas:**
+- El usuario deshabilitado tendrá status `inactive`
+- No podrá ingresar al sistema
+- Se puede reactivar usando el endpoint `/enable`
+
+---
+
+## 9. HABILITAR USUARIO
+
+**Endpoint:** `PATCH /api/users/{user_id}/enable`
+
+Requiere: JWT Token (Bearer Token) y rol ROOT
+
+```bash
+# Obtener el user_id del usuario a habilitar
+USER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+curl -X PATCH "${USERS_URL}/api/users/${USER_ID}/enable" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
+**Response esperado:**
+```json
+{
+  "message": "User xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx enabled successfully",
+  "user_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "status": "active"
+}
+```
+
+**Notas:**
+- El usuario habilitado tendrá status `active`
+- Podrá ingresar al sistema nuevamente
+- Se puede deshabilitar usando el endpoint `/disable`
+
+---
