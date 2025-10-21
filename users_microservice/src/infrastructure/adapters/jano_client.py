@@ -5,6 +5,7 @@ to validate passwords and usernames against security policies.
 """
 import logging
 import httpx
+import os
 from typing import Optional
 from datetime import datetime
 
@@ -19,6 +20,11 @@ class JANOValidationError(Exception):
         super().__init__(self.message)
 
 
+class JANODisabledException(Exception):
+    """Raised when JANO validation is disabled."""
+    pass
+
+
 class JANOClient:
     """Client for JANO microservice communication."""
     
@@ -26,7 +32,8 @@ class JANOClient:
         self,
         base_url: str,
         timeout: float = 5.0,
-        application_id: str = "users_service"
+        application_id: str = "users_service",
+        enabled: bool = True
     ):
         """
         Initialize JANO client.
@@ -35,13 +42,16 @@ class JANOClient:
             base_url: Base URL of JANO microservice
             timeout: Request timeout in seconds
             application_id: Identifier for this application
+            enabled: Whether JANO validation is enabled
         """
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         self.application_id = application_id
+        self.enabled = enabled
         self.client = httpx.AsyncClient(timeout=timeout)
         
-        logger.info(f"JANO client initialized: {base_url} (timeout={timeout}s)")
+        status = "ENABLED" if enabled else "DISABLED"
+        logger.info(f"JANO client initialized: {base_url} (timeout={timeout}s, status={status})")
     
     async def close(self):
         """Close HTTP client."""
@@ -66,8 +76,14 @@ class JANOClient:
             
         Raises:
             JANOValidationError: If validation fails
+            JANODisabledException: If JANO validation is disabled
             httpx.HTTPError: If communication with JANO fails
         """
+        # If JANO is disabled, allow all passwords
+        if not self.enabled:
+            logger.debug("JANO validation is disabled - allowing password")
+            return True, []
+        
         url = f"{self.base_url}/api/v1/policies/validate-password"
         
         payload = {
@@ -143,8 +159,14 @@ class JANOClient:
             
         Raises:
             JANOValidationError: If validation fails
+            JANODisabledException: If JANO validation is disabled
             httpx.HTTPError: If communication with JANO fails
         """
+        # If JANO is disabled, allow all usernames
+        if not self.enabled:
+            logger.debug("JANO validation is disabled - allowing username")
+            return True, []
+        
         url = f"{self.base_url}/api/v1/policies/validate-username"
         
         payload = {
@@ -205,8 +227,13 @@ class JANOClient:
         Check if JANO service is available.
         
         Returns:
-            True if JANO is healthy, False otherwise
+            True if JANO is healthy and enabled, False otherwise
         """
+        # If JANO is disabled, consider it "healthy" (not needed)
+        if not self.enabled:
+            logger.debug("JANO validation is disabled - health check returns True")
+            return True
+        
         url = f"{self.base_url}/health"
         
         try:
@@ -242,6 +269,7 @@ def get_jano_client() -> JANOClient:
 __all__ = [
     "JANOClient",
     "JANOValidationError",
+    "JANODisabledException",
     "jano_client",
     "get_jano_client",
 ]
