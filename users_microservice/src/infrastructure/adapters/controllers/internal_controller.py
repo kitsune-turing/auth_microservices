@@ -184,3 +184,50 @@ async def get_user_by_email(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}",
         )
+
+
+@router.get(
+    "/test/db-schema",
+    status_code=status.HTTP_200_OK,
+    summary="[TEST] Verify database schema and ORM",
+    description="TEST ENDPOINT - Verifies that SQLAlchemy models can connect to siata_auth schema correctly.",
+)
+async def test_db_schema() -> dict:
+    """
+    Test endpoint to verify database connection and schema mapping.
+    
+    This is a temporary endpoint to validate that the ORM correctly
+    connects to siata_auth schema.
+    
+    Returns:
+        Status information about the database connection
+    """
+    try:
+        from src.infrastructure.db.database import AsyncSessionLocal
+        
+        async with AsyncSessionLocal() as session:
+            # Test query to verify schema connection
+            from sqlalchemy import text
+            
+            result = await session.execute(
+                text("SELECT COUNT(*) as user_count FROM siata_auth.users")
+            )
+            count_row = result.fetchone()
+            user_count = count_row[0] if count_row else 0
+            
+            return {
+                "status": "✓ OK",
+                "message": "Database connection and schema mapping verified",
+                "schema": "siata_auth",
+                "table": "users",
+                "user_count": user_count
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "status": "✗ ERROR",
+                "error": str(e),
+                "type": type(e).__name__
+            }
+        )
