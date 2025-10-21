@@ -218,7 +218,7 @@ curl -X PUT "${USERS_URL}/api/users/${USER_ID}" \
     "name": "Nombre Actualizado",
     "last_name": "Apellido Actualizado",
     "email": "nuevo.email@siata.gov.co"
-  }' | jq .
+  }'
 ```
 
 **Response esperado:**
@@ -252,7 +252,7 @@ Requiere: JWT Token (Bearer Token) y rol ROOT
 # Listar usuarios con paginación (página 1, 10 usuarios por página)
 curl -X GET "${USERS_URL}/api/users?page=1&size=10" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq .
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 **Con filtros opcionales:**
@@ -261,17 +261,17 @@ curl -X GET "${USERS_URL}/api/users?page=1&size=10" \
 # Listar solo usuarios activos
 curl -X GET "${USERS_URL}/api/users?page=1&size=10&active_only=true" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq .
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
 # Listar solo usuarios con rol específico
 curl -X GET "${USERS_URL}/api/users?page=1&size=10&role=user_siata" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq .
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 
 # Combinación de filtros
 curl -X GET "${USERS_URL}/api/users?page=1&size=10&role=external&active_only=true" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq .
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 **Response esperado:**
@@ -315,7 +315,7 @@ USER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 curl -X PATCH "${USERS_URL}/api/users/${USER_ID}/disable" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq .
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 **Response esperado:**
@@ -346,7 +346,7 @@ USER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 curl -X PATCH "${USERS_URL}/api/users/${USER_ID}/enable" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" | jq .
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
 **Response esperado:**
