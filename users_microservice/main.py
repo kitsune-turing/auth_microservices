@@ -33,19 +33,24 @@ async def lifespan(app: FastAPI):
     
     # Initialize JANO client
     jano_service_url = os.getenv("JANO_SERVICE_URL", "http://jano_microservice:8005")
+    enable_jano_validation = os.getenv("ENABLE_JANO_VALIDATION", "true").lower() == "true"
+    
     jano_client_module.jano_client = JANOClient(
         base_url=jano_service_url,
         timeout=5.0,
-        application_id="users_service"
+        application_id="users_service",
+        enabled=enable_jano_validation
     )
-    logger.info(f"JANO client initialized with URL: {jano_service_url}")
     
-
-    jano_healthy = await jano_client_module.jano_client.health_check()
-    if jano_healthy:
-        logger.info("JANO service is available")
+    if enable_jano_validation:
+        logger.info(f"JANO client initialized with URL: {jano_service_url}")
+        jano_healthy = await jano_client_module.jano_client.health_check()
+        if jano_healthy:
+            logger.info("JANO service is available")
+        else:
+            logger.warning("JANO service is not available - will use fallback validation")
     else:
-        logger.warning("JANO service is not available - password validation may fail")
+        logger.info("JANO validation is DISABLED - password/username validation will be skipped")
     
     yield
     
