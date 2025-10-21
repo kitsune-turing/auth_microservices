@@ -52,3 +52,7 @@ docker-compose.override.yml
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Configuration Rules Microservice (Local Development Only)
+configuration_rules_microservice/
+
